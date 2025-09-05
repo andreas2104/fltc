@@ -1,0 +1,77 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  userId        String    @id @default(uuid())
+  name          String
+  firstName     String
+  email         String    @unique
+  contact       String    @unique
+  password      String
+  role          Boolean
+  centerId      Int
+  createdAt     DateTime  @default(now())
+  emailVerified DateTime?
+  // Renommage de la relation 'city' en 'center' pour plus de clarté
+  center        Center    @relation(fields: [centerId], references: [centerId])
+}
+
+model Center {
+  centerId Int       @id @default(autoincrement())
+  city     String
+  User     User[]
+  Student  Student[]
+}
+
+model Student {
+  studentId Int    @id @default(autoincrement())
+  name      String
+  firstName String
+  contact   String
+  identity  String
+  centerId  Int
+  // Correction du nom du champ de relation
+  center    Center @relation(fields: [centerId], references: [centerId])
+  fees      Fees[]
+  pay       Pay[]
+}
+
+// Correction du type de données et ajout de commentaires
+model Fees {
+  // Correction de la convention de nommage : 'FeesId' -> 'feesId'
+  feesId Int    @id @default(autoincrement())
+  // Le prix devrait être un Int ou un Float
+  price  Int
+  // Suggestion: Lier les frais à un étudiant
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [studentId])
+  pay       Pay[]
+
+}
+
+model Pay {
+  // Correction de la convention de nommage : 'payId' -> 'payId'
+  payId  Int    @id @default(autoincrement())
+  // Correction de la faute de frappe et du nom du champ
+  amount Int
+  // Correction de la faute de frappe : 'mounth' -> 'month'
+  // Suggestion: Penser à un type plus adapté pour la date
+  month String
+  // Suggestion: Lier les paiements à un étudiant et aux frais
+  studentId Int
+  student   Student @relation(fields: [studentId], references: [studentId])
+  feesId    Int
+  fees      Fees    @relation(fields: [feesId], references: [feesId])
+}
