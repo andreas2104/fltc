@@ -166,7 +166,7 @@ export default function StudentDetailsPage() {
   if (loading) {
     return (
       <div className="p-8 text-center text-lg text-gray-600 dark:text-gray-400">
-        Chargement des informations de l'étudiant...
+        Loading Student Information.
       </div>
     );
   }
@@ -194,11 +194,11 @@ export default function StudentDetailsPage() {
       </div>
 
       <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
-        <h2 className="text-2xl font-semibold mb-4">Informations générales</h2>
+        <h2 className="text-2xl font-semibold mb-4">General Information</h2>
         <form onSubmit={handleUpdateStudent} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium">Nom</label>
+              <label className="block text-sm font-medium">Name</label>
               <input
                 type="text"
                 name="name"
@@ -209,7 +209,7 @@ export default function StudentDetailsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium">Prénom</label>
+              <label className="block text-sm font-medium">LastName</label>
               <input
                 type="text"
                 name="firstName"
@@ -231,7 +231,7 @@ export default function StudentDetailsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium">Identité</label>
+              <label className="block text-sm font-medium">Identity</label>
               <input
                 type="text"
                 name="identity"
@@ -242,7 +242,7 @@ export default function StudentDetailsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium">Centre</label>
+              <label className="block text-sm font-medium">Center</label>
               <select
                 name="centerId"
                 value={student.centerId}
@@ -264,7 +264,7 @@ export default function StudentDetailsPage() {
                 type="submit"
                 className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
               >
-                Enregistrer
+                Save
               </button>
             </div>
           )}
@@ -280,7 +280,7 @@ export default function StudentDetailsPage() {
               onClick={() => setIsAddFeesModalOpen(true)}
               className="px-4 py-2 bg-green-600 text-white rounded-md shadow-sm"
             >
-              Ajouter des frais
+              Add fees
             </button>
           </div>
           <table className="min-w-full leading-normal">
@@ -299,7 +299,7 @@ export default function StudentDetailsPage() {
                       onClick={() => handleDeleteFees(fee.feesId)}
                       className="px-4 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600"
                     >
-                      Supprimer
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -311,12 +311,12 @@ export default function StudentDetailsPage() {
         {/* Section Paiements */}
         <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold">Paiements</h2>
+            <h2 className="text-2xl font-semibold">Payement</h2>
             <button
               onClick={() => setIsAddPayModalOpen(true)}
               className="px-4 py-2 bg-indigo-600 text-white rounded-md shadow-sm"
             >
-              Ajouter un paiement
+              Add payement
             </button>
           </div>
           <table className="min-w-full leading-normal">
@@ -339,7 +339,7 @@ export default function StudentDetailsPage() {
                       onClick={() => handleDeletePay(pay.payId)}
                       className="px-4 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600"
                     >
-                      Supprimer
+                      Delete
                     </button>
                   </td>
                 </tr>
@@ -353,10 +353,10 @@ export default function StudentDetailsPage() {
       {isAddFeesModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-4">Ajouter des frais</h2>
+            <h2 className="text-2xl font-bold mb-4">Add Fees</h2>
             <form onSubmit={handleAddFees} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium">Montant</label>
+                <label className="block text-sm font-medium">Amount</label>
                 <input
                   type="number"
                   name="price"
@@ -372,13 +372,13 @@ export default function StudentDetailsPage() {
                   onClick={() => setIsAddFeesModalOpen(false)}
                   className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  Ajouter
+                  Add
                 </button>
               </div>
             </form>
@@ -390,10 +390,10 @@ export default function StudentDetailsPage() {
       {isAddPayModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-4">Ajouter un paiement</h2>
+            <h2 className="text-2xl font-bold mb-4">Add a payement</h2>
             <form onSubmit={handleAddPay} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium">Montant</label>
+                <label className="block text-sm font-medium">Amount</label>
                 <input
                   type="number"
                   name="amount"
@@ -404,7 +404,7 @@ export default function StudentDetailsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Mois</label>
+                <label className="block text-sm font-medium">Mounth</label>
                 <input
                   type="text"
                   name="month"
@@ -415,7 +415,7 @@ export default function StudentDetailsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Frais</label>
+                <label className="block text-sm font-medium">Fees</label>
                 <select
                   name="feesId"
                   value={newPay.feesId}
@@ -423,7 +423,7 @@ export default function StudentDetailsPage() {
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                 >
-                  <option value="" disabled>Sélectionner des frais</option>
+                  <option value="" disabled>Select Fees</option>
                   {fees.map(fee => (
                     <option key={fee.feesId} value={fee.feesId}>{fee.feesId}</option>
                   ))}
@@ -435,13 +435,13 @@ export default function StudentDetailsPage() {
                   onClick={() => setIsAddPayModalOpen(false)}
                   className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  Ajouter
+                  Add
                 </button>
               </div>
             </form>
@@ -453,20 +453,20 @@ export default function StudentDetailsPage() {
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Confirmer la suppression</h2>
-            <p className="mb-4">Êtes-vous sûr de vouloir supprimer cet élément ?</p>
+            <h2 className="text-2xl font-bold mb-4">Confirm Deletion</h2>
+            <p className="mb-4">Are you sure to delete this element ?</p>
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setIsConfirmModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
               >
-                Annuler
+                Cancel
               </button>
               <button
                 onClick={handleConfirmAction}
                 className="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
               >
-                Confirmer
+                Confirm
               </button>
             </div>
           </div>

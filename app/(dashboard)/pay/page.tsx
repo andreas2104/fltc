@@ -107,7 +107,7 @@ export default function PayPage() {
   if (loading) {
     return (
       <div className="p-8 text-center text-lg text-gray-600 dark:text-gray-400">
-        Chargement de la liste des paiements...
+        Loading list paie...
       </div>
     );
   }
@@ -124,7 +124,7 @@ export default function PayPage() {
     <div className="p-8 space-y-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-          Gestion des paiements
+           Payement Management
         </h1>
         <button
           onClick={() => setIsAddPayModalOpen(true)}
@@ -142,13 +142,13 @@ export default function PayPage() {
                 ID
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Montant
+                Amount
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Mois
+                Mounth
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Étudiant
+                Student
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600"></th>
             </tr>
@@ -173,7 +173,7 @@ export default function PayPage() {
                     onClick={() => handleDeletePay(pay.payId)}
                     className="px-4 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600"
                   >
-                    Supprimer
+                    Delete
                   </button>
                 </td>
               </tr>
@@ -186,10 +186,10 @@ export default function PayPage() {
       {isAddPayModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-4">Ajouter un paiement</h2>
+            <h2 className="text-2xl font-bold mb-4">Add  payement</h2>
             <form onSubmit={handleAddPay} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium">Montant</label>
+                <label className="block text-sm font-medium">Amount</label>
                 <input
                   type="number"
                   name="amount"
@@ -200,7 +200,7 @@ export default function PayPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Mois</label>
+                <label className="block text-sm font-medium">Mounth</label>
                 <input
                   type="text"
                   name="month"
@@ -211,7 +211,7 @@ export default function PayPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Étudiant</label>
+                <label className="block text-sm font-medium">Student</label>
                 <select
                   name="studentId"
                   value={newPay.studentId}
@@ -219,7 +219,7 @@ export default function PayPage() {
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                 >
-                  <option value="" disabled>Sélectionner un étudiant</option>
+                  <option value="" disabled>Select a Student</option>
                   {students.map(student => (
                     <option key={student.studentId} value={student.studentId}>
                       {student.firstName} {student.name}
@@ -228,7 +228,7 @@ export default function PayPage() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium">Frais</label>
+                <label className="block text-sm font-medium">Fees</label>
                 <select
                   name="feesId"
                   value={newPay.feesId}
@@ -236,7 +236,7 @@ export default function PayPage() {
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                 >
-                  <option value="" disabled>Sélectionner des frais</option>
+                  <option value="" disabled>Select  fees</option>
                   {fees.map(fee => (
                     <option key={fee.feesId} value={fee.feesId}>Frais ID: {fee.feesId} (pour {getStudentName(fee.studentId)})</option>
                   ))}
@@ -248,13 +248,13 @@ export default function PayPage() {
                   onClick={() => setIsAddPayModalOpen(false)}
                   className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  Ajouter
+                  Add
                 </button>
               </div>
             </form>
@@ -266,20 +266,20 @@ export default function PayPage() {
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Confirmer la suppression</h2>
-            <p className="mb-4">Êtes-vous sûr de vouloir supprimer cet élément ?</p>
+            <h2 className="text-2xl font-bold mb-4">Confirm deletion</h2>
+            <p className="mb-4">Are you sure to delete this  element ?</p>
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setIsConfirmModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
               >
-                Annuler
+                Cancel
               </button>
               <button
                 onClick={handleConfirmAction}
                 className="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
               >
-                Confirmer
+                Confirm
               </button>
             </div>
           </div>

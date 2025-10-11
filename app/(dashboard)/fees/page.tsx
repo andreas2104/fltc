@@ -102,7 +102,7 @@ export default function FeesPage() {
   if (loading) {
     return (
       <div className="p-8 text-center text-lg text-gray-600 dark:text-gray-400">
-        Chargement de la liste des frais...
+        Loading of list  fees...
       </div>
     );
   }
@@ -119,13 +119,13 @@ export default function FeesPage() {
     <div className="p-8 space-y-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-          Gestion des frais
+          Fees Management 
         </h1>
         <button
           onClick={() => setIsAddFeesModalOpen(true)}
           className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow-md transition-transform transform hover:scale-105"
         >
-          Ajouter des frais
+          Add fees
         </button>
       </div>
 
@@ -137,10 +137,10 @@ export default function FeesPage() {
                 ID
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Montant
+                Mount
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Étudiant
+                Student
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600"></th>
             </tr>
@@ -162,7 +162,7 @@ export default function FeesPage() {
                     onClick={() => handleDeleteFees(fee.feesId)}
                     className="px-4 py-2 text-sm text-white bg-red-500 rounded-md hover:bg-red-600"
                   >
-                    Supprimer
+                    Delete
                   </button>
                 </td>
               </tr>
@@ -175,10 +175,10 @@ export default function FeesPage() {
       {isAddFeesModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-4">Ajouter des frais</h2>
+            <h2 className="text-2xl font-bold mb-4">Add fees</h2>
             <form onSubmit={handleAddFees} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium">Montant</label>
+                <label className="block text-sm font-medium">Amount</label>
                 <input
                   type="number"
                   name="price"
@@ -189,7 +189,7 @@ export default function FeesPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Étudiant</label>
+                <label className="block text-sm font-medium">Student</label>
                 <select
                   name="studentId"
                   value={newFees.studentId}
@@ -211,13 +211,13 @@ export default function FeesPage() {
                   onClick={() => setIsAddFeesModalOpen(false)}
                   className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  Ajouter
+                  Add
                 </button>
               </div>
             </form>
@@ -229,20 +229,20 @@ export default function FeesPage() {
       {isConfirmModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg">
-            <h2 className="text-2xl font-bold mb-4">Confirmer la suppression</h2>
-            <p className="mb-4">Êtes-vous sûr de vouloir supprimer cet élément ?</p>
+            <h2 className="text-2xl font-bold mb-4">Confirm delete</h2>
+            <p className="mb-4">  Are You sure to delete  this element?</p>
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setIsConfirmModalOpen(false)}
                 className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
               >
-                Annuler
+                Cancel
               </button>
               <button
                 onClick={handleConfirmAction}
                 className="px-4 py-2 text-sm font-medium rounded-md text-white bg-red-600 hover:bg-red-700"
               >
-                Confirmer
+                Confirm
               </button>
             </div>
           </div>

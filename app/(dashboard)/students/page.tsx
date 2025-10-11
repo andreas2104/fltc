@@ -93,7 +93,7 @@ export default function StudentsPage() {
   if (loading) {
     return (
       <div className="p-8 text-center text-lg text-gray-600 dark:text-gray-400">
-        Chargement de la liste des étudiants...
+        Loadiing student List.
       </div>
     );
   }
@@ -110,13 +110,13 @@ export default function StudentsPage() {
     <div className="p-8 space-y-8">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-          Gestion des étudiants
+          Student Management
         </h1>
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow-md transition-transform transform hover:scale-105"
         >
-          Ajouter un étudiant
+          Add student
         </button>
       </div>
 
@@ -128,10 +128,10 @@ export default function StudentsPage() {
                 ID
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Nom
+                Name
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Prénom
+                LastName
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
                 Contact
@@ -165,13 +165,13 @@ export default function StudentsPage() {
                     onClick={() => handleEditStudent(student.studentId)}
                     className="px-4 py-2 text-sm font-medium text-white bg-yellow-500 rounded-md hover:bg-yellow-600 mr-2"
                   >
-                    Modifier
+                    Edit
                   </button>
                   <button
                     onClick={() => handleDeleteStudent(student.studentId)}
                     className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600"
                   >
-                    Supprimer
+                    Delete
                   </button>
                 </td>
               </tr>
@@ -183,10 +183,10 @@ export default function StudentsPage() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-4">Ajouter un nouvel étudiant</h2>
+            <h2 className="text-2xl font-bold mb-4">Add new student</h2>
             <form onSubmit={handleAddStudent} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium">Nom</label>
+                <label className="block text-sm font-medium">Name</label>
                 <input
                   type="text"
                   name="name"
@@ -197,7 +197,7 @@ export default function StudentsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Prénom</label>
+                <label className="block text-sm font-medium">LastName</label>
                 <input
                   type="text"
                   name="firstName"
@@ -219,7 +219,7 @@ export default function StudentsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Identité</label>
+                <label className="block text-sm font-medium">Identity</label>
                 <input
                   type="text"
                   name="identity"
@@ -230,7 +230,7 @@ export default function StudentsPage() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium">Centre</label>
+                <label className="block text-sm font-medium">Center</label>
                 <select
                   name="centerId"
                   value={newStudent.centerId}
@@ -252,13 +252,13 @@ export default function StudentsPage() {
                   onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
                 >
-                  Annuler
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
                 >
-                  Ajouter
+                  Add
                 </button>
               </div>
             </form>
