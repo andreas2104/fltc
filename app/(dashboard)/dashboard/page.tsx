@@ -39,15 +39,15 @@ export default function DashboardPage() {
     fetchData();
   }, []);
 
-  const userName = 'Nom de l\'utilisateur'; // Remplacez par le nom de l'utilisateur de l'authentification
+  const userName = 'Dorlin'; // Remplacez par le nom de l'utilisateur de l'authentification
 
   return (
-    <div className="p-8 space-y-8">
-      <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+    <div className="p-1 space-y-8">
+      <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
         Welcome on dashboard !
       </h1>
       <p className="text-xl text-gray-700 dark:text-gray-300">
-        Hello, {userName}. You can  navigate with the left sidebar.
+        Hello, <span className='text-orange-300'>{userName}.</span> You can  navigate with the left sidebar.
       </p>
 
       {loading ? (

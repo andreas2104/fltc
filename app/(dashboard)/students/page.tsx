@@ -1,35 +1,67 @@
 'use client';
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+// Importer useSearch depuis le contexte
+import { useSearch } from '../../context/searchContext'; 
 
+// --- Types ---
+type Student = {
+  studentId: number;
+  name: string;
+  firstName: string;
+  contact: string;
+  identity: string;
+  status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
+  fees: any[];
+  pay: any[];
+};
+
+type Notification = {
+  id: string;
+  type: 'success' | 'error' | 'info';
+  message: string;
+};
+
+// --- Composant Principal ---
 export default function StudentsPage() {
-  const [students, setStudents] = useState([]);
-  const [centers, setCenters] = useState([]);
+  const { searchQuery } = useSearch(); // Utiliser le contexte de recherche
+  const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newStudent, setNewStudent] = useState({ name: '', firstName: '', contact: '', identity: '', centerId: '' });
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [newStudent, setNewStudent] = useState({
+    name: '',
+    firstName: '',
+    contact: '',
+    identity: '',
+  });
+  const [submitting, setSubmitting] = useState(false);
+
   const router = useRouter();
+
+  const addNotification = (type: 'success' | 'error' | 'info', message: string) => {
+    const id = Math.random().toString(36).substr(2, 9);
+    setNotifications(prev => [...prev, { id, type, message }]);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(notification => notification.id !== id));
+    }, 5000);
+  };
 
   const fetchData = async () => {
     try {
-      const [studentsRes, centersRes] = await Promise.all([
-        fetch('/api/student'),
-        fetch('/api/center'),
-      ]);
-
-      if (!studentsRes.ok || !centersRes.ok) {
-        throw new Error('Échec du chargement des données.');
+      setLoading(true);
+      const studentsRes = await fetch('/api/student');
+      if (!studentsRes.ok) {
+        throw new Error('Failed to load students.');
       }
-
       const studentsData = await studentsRes.json();
-      const centersData = await centersRes.json();
-
       setStudents(studentsData);
-      setCenters(centersData);
     } catch (err) {
-      setError(err.message);
+      addNotification('error', err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);
     }
@@ -39,91 +71,239 @@ export default function StudentsPage() {
     fetchData();
   }, []);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setNewStudent(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleAddStudent = async (e) => {
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    if (editingStudent) {
+      setEditingStudent(prev => prev ? { ...prev, [name]: value } : null);
+    }
+  };
+
+  const handleAddStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitting(true);
+    
     try {
       const res = await fetch('/api/student', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...newStudent,
-          centerId: Number(newStudent.centerId) // Assurer que l'ID est un nombre
-        }),
+        body: JSON.stringify(newStudent),
       });
-
+      
+      const data = await res.json();
+      
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || 'Erreur lors de l\'ajout de l\'étudiant.');
+        throw new Error(data.error || 'Error adding student.');
       }
-
-      // Recharger les données après l'ajout
+      
       await fetchData();
       setIsModalOpen(false);
-      setNewStudent({ name: '', firstName: '', contact: '', identity: '', centerId: '' });
+      setNewStudent({ name: '', firstName: '', contact: '', identity: '' });
+      addNotification('success', 'Student added successfully!');
     } catch (err) {
-      setError(err.message);
+      addNotification('error', err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleDeleteStudent = async (studentId) => {
-    if (window.confirm('Voulez-vous vraiment supprimer cet étudiant ?')) {
+  const handleEditStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingStudent) return;
+    
+    setSubmitting(true);
+    
+    try {
+      const res = await fetch(`/api/student/${editingStudent.studentId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingStudent.name,
+          firstName: editingStudent.firstName,
+          contact: editingStudent.contact,
+          identity: editingStudent.identity,
+        }),
+      });
+      
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || 'Error updating student.');
+      }
+      
+      await fetchData();
+      setIsEditModalOpen(false);
+      setEditingStudent(null);
+      addNotification('success', 'Student updated successfully!');
+    } catch (err) {
+      addNotification('error', err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteStudent = async (studentId: number) => {
+    if (window.confirm('Are you sure you want to delete this student?')) {
       try {
         const res = await fetch(`/api/student/${studentId}`, {
           method: 'DELETE',
         });
+        
         if (!res.ok) {
-          throw new Error('Échec de la suppression de l\'étudiant.');
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'Failed to delete student.');
         }
-        await fetchData(); // Recharger les données
+        
+        await fetchData();
+        addNotification('success', 'Student deleted successfully!');
       } catch (err) {
-        setError(err.message);
+        addNotification('error', err instanceof Error ? err.message : 'An error occurred');
       }
     }
   };
 
-  const handleEditStudent = (studentId) => {
+  const openEditModal = (student: Student) => {
+    setEditingStudent(student);
+    setIsEditModalOpen(true);
+  };
+
+  const handleViewDetails = (studentId: number) => {
     router.push(`/students/${studentId}`);
   };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100';
+      case 'OVERDUE':
+        return 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100';
+      default:
+        return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-100';
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'COMPLETED':
+        return 'Completed';
+      case 'OVERDUE':
+        return 'Overdue';
+      case 'PENDING':
+        return 'Pending';
+      default:
+        return status;
+    }
+  };
+
+  // --- Filtre et Statistiques ---
+  
+  // 1. Filtrer les étudiants en utilisant la requête de recherche du contexte
+  const filteredStudents = useMemo(() => {
+    if (!searchQuery) return students;
+
+    const query = searchQuery.toLowerCase().trim();
+    return students.filter(student =>
+      student.name.toLowerCase().includes(query) ||
+      student.firstName.toLowerCase().includes(query) ||
+      student.contact.toLowerCase().includes(query) ||
+      student.identity.toLowerCase().includes(query)
+    );
+  }, [students, searchQuery]);
+  
+  // 2. Calculer les statistiques globales (utilisant la liste complète)
+  const getStudentStats = () => {
+    const total = students.length;
+    const completed = students.filter(s => s.status === 'COMPLETED').length;
+    const overdue = students.filter(s => s.status === 'OVERDUE').length;
+    const pending = students.filter(s => s.status === 'PENDING').length;
+    return { total, completed, overdue, pending };
+  };
+
+  const stats = getStudentStats();
+  // -----------------------------
 
   if (loading) {
     return (
       <div className="p-8 text-center text-lg text-gray-600 dark:text-gray-400">
-        Loadiing student List.
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="p-8 text-center text-lg text-red-500">
-        Erreur : {error}
+        Loading student list...
       </div>
     );
   }
 
   return (
-    <div className="p-8 space-y-8">
-      <div className="flex justify-between items-center mb-6">
+    // Utilisez `h-full` sur le conteneur principal pour définir une hauteur flexible
+    <div className="h-full space-y-8 flex flex-col">
+      {/* Notifications */}
+      <div className="fixed top-4 right-4 z-50 space-y-2">
+        {notifications.map((notification) => (
+          <div
+            key={notification.id}
+            className={`p-4 rounded-lg shadow-lg border-l-4 ${
+              notification.type === 'success'
+                ? 'bg-green-50 border-green-500 text-green-700'
+                : notification.type === 'error'
+                ? 'bg-red-50 border-red-500 text-red-700'
+                : 'bg-blue-50 border-blue-500 text-blue-700'
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              <span>{notification.message}</span>
+              <button
+                onClick={() => setNotifications(prev => prev.filter(n => n.id !== notification.id))}
+                className="ml-4 text-gray-500 hover:text-gray-700"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Tête de page (Immobile) */}
+      <div className="flex justify-between items-center">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
           Student Management
         </h1>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow-md transition-transform transform hover:scale-105"
+          className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 transition-colors"
+          disabled={submitting}
         >
-          Add student
+          {submitting ? 'Adding...' : 'Add Student'}
         </button>
       </div>
 
-      <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-xl shadow-md">
+      {/* Statistics Cards (Immobile) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-blue-500">
+          <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+          <div className="text-gray-600 dark:text-gray-400 text-sm">Total Students</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-green-500">
+          <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
+          <div className="text-gray-600 dark:text-gray-400 text-sm">Completed</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-yellow-500">
+          <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+          <div className="text-gray-600 dark:text-gray-400 text-sm">Pending</div>
+        </div>
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-red-500">
+          <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
+          <div className="text-gray-600 dark:text-gray-400 text-sm">Overdue</div>
+        </div>
+      </div>
+
+      {/* Conteneur de tableau avec défilement vertical */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md flex-1 min-h-0 overflow-y-auto">
         <table className="min-w-full leading-normal">
           <thead>
-            <tr className="bg-gray-200 dark:bg-gray-700">
+            <tr className="bg-gray-200 dark:bg-gray-700 sticky top-0 z-10">
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
                 ID
               </th>
@@ -131,24 +311,30 @@ export default function StudentsPage() {
                 Name
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                LastName
+                First Name
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
                 Contact
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Centre
+                Identity
               </th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600"></th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
+                Status
+              </th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
-            {students.map((student) => (
-              <tr key={student.studentId} className="hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+            {/* Utiliser filteredStudents pour l'affichage */}
+            {filteredStudents.map((student) => (
+              <tr key={student.studentId} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
                   {student.studentId}
                 </td>
-                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
+                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium">
                   {student.name}
                 </td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
@@ -158,18 +344,29 @@ export default function StudentsPage() {
                   {student.contact}
                 </td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                  {student.center?.city || 'N/A'}
+                  {student.identity}
                 </td>
-                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-right">
+                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(student.status)}`}>
+                    {getStatusText(student.status)}
+                  </span>
+                </td>
+                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-right space-x-2">
                   <button
-                    onClick={() => handleEditStudent(student.studentId)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-yellow-500 rounded-md hover:bg-yellow-600 mr-2"
+                    onClick={() => handleViewDetails(student.studentId)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Details
+                  </button>
+                  <button
+                    onClick={() => openEditModal(student)}
+                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
                   >
                     Edit
                   </button>
                   <button
                     onClick={() => handleDeleteStudent(student.studentId)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600"
+                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors"
                   >
                     Delete
                   </button>
@@ -178,87 +375,196 @@ export default function StudentsPage() {
             ))}
           </tbody>
         </table>
+        
+        {filteredStudents.length === 0 && !loading && (
+          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+            {searchQuery ? `No students found matching "${searchQuery}".` : 'No students found.'}
+          </div>
+        )}
       </div>
 
+      {/* Modals remain here... */}
+      {/* ... Add Student Modal ... */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-4">Add new student</h2>
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Add New Student</h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                disabled={submitting}
+              >
+                ×
+              </button>
+            </div>
+            
             <form onSubmit={handleAddStudent} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium">Name</label>
+                <label className="block text-sm font-medium mb-2">Name</label>
                 <input
                   type="text"
                   name="name"
                   value={newStudent.name}
                   onChange={handleInputChange}
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  disabled={submitting}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
+                  placeholder="Enter name"
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium">LastName</label>
+                <label className="block text-sm font-medium mb-2">First Name</label>
                 <input
                   type="text"
                   name="firstName"
                   value={newStudent.firstName}
                   onChange={handleInputChange}
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  disabled={submitting}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
+                  placeholder="Enter first name"
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium">Contact</label>
+                <label className="block text-sm font-medium mb-2">Contact</label>
                 <input
                   type="text"
                   name="contact"
                   value={newStudent.contact}
                   onChange={handleInputChange}
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  disabled={submitting}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
+                  placeholder="Phone number or email"
                 />
               </div>
+              
               <div>
-                <label className="block text-sm font-medium">Identity</label>
+                <label className="block text-sm font-medium mb-2">Identity</label>
                 <input
                   type="text"
                   name="identity"
                   value={newStudent.identity}
                   onChange={handleInputChange}
                   required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  disabled={submitting}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
+                  placeholder="Identity number"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium">Center</label>
-                <select
-                  name="centerId"
-                  value={newStudent.centerId}
-                  onChange={handleInputChange}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-                >
-                  <option value="" disabled>Sélectionner un centre</option>
-                  {centers.map(center => (
-                    <option key={center.centerId} value={center.centerId}>
-                      {center.city}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex justify-end space-x-2">
+                    
+              <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300"
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
                 >
-                  Add
+                  {submitting ? 'Adding...' : 'Add Student'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ... Edit Student Modal ... */}
+      {isEditModalOpen && editingStudent && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold">Edit Student</h2>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                disabled={submitting}
+              >
+                ×
+              </button>
+            </div>
+            
+            <form onSubmit={handleEditStudent} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2">Name</label>
+                <input
+                  type="text"
+                  name="name"
+                  value={editingStudent.name}
+                  onChange={handleEditInputChange}
+                  required
+                  disabled={submitting}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
+                  placeholder="Enter name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">First Name</label>
+                <input
+                  type="text"
+                  name="firstName"
+                  value={editingStudent.firstName}
+                  onChange={handleEditInputChange}
+                  required
+                  disabled={submitting}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
+                  placeholder="Enter first name"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Contact</label>
+                <input
+                  type="text"
+                  name="contact"
+                  value={editingStudent.contact}
+                  onChange={handleEditInputChange}
+                  required
+                  disabled={submitting}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
+                  placeholder="Phone number or email"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Identity</label>
+                <input
+                  type="text"
+                  name="identity"
+                  value={editingStudent.identity}
+                  onChange={handleEditInputChange}
+                  required
+                  disabled={submitting}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
+                  placeholder="Identity number"
+                />
+              </div>
+                    
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsEditModalOpen(false)}
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="px-4 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 transition-colors"
+                >
+                  {submitting ? 'Updating...' : 'Update Student'}
                 </button>
               </div>
             </form>

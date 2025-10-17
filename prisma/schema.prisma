@@ -29,7 +29,6 @@ model User {
   contact       String    @unique
   password      String
   role          Boolean   // true = admin
-  centerId      Int
   createdAt     DateTime  @default(now())
   emailVerified DateTime?
 
@@ -41,10 +40,9 @@ model Student {
   studentId      Int           @id @default(autoincrement())
   name           String
   firstName      String
-  contact        String
-  identity       String        // CIN ou carte étudiant
-  centerId       Int
-  status         StudentStatus @default(PENDING)  // Mis à jour auto après paiements
+  contact        String     @unique
+  identity       String       @unique 
+  status         StudentStatus @default(PENDING)  
   createdAt      DateTime      @default(now())
   fees           Fees[]
   pay            Pay[]
@@ -52,20 +50,20 @@ model Student {
 
 model Fees {
   feesId    Int      @id @default(autoincrement())
-  price     Int      // Ex. : 2000 pour droits, 1000 pour écolage
-  feeType   FeeType  // DROITS_ANNUELS ou ECOLAGE_MENSUEL
-  month     String?  // Pour écolage : "janvier-2025" ; null pour droits annuels
+  price     Int    
+  feeType   FeeType @default(DROITS_ANNUELS) 
+  month     String?  
   studentId Int
   student   Student  @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
   pay       Pay[]
 
-  @@index([studentId, feeType])  // Perf pour calculs par type
+  @@index([studentId, feeType]) 
 }
 
 model Pay {
   payId     Int      @id @default(autoincrement())
-  amount    Int      // Montant payé
-  month     String   // Ex. : "janvier-2025"
+  amount    Int      
+  month     String   
   studentId Int
   student   Student  @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
   feesId    Int
