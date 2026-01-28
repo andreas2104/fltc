@@ -10,6 +10,7 @@ type Student = {
   firstName: string;
   contact: string;
   identity: string;
+  promotion: string;
   status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
 };
 
@@ -57,6 +58,8 @@ export default function StudentDetailsPage() {
     month: '', 
     studentId: Number(studentId) 
   });
+  
+  const [identityFile, setIdentityFile] = useState<File | null>(null);
   
   const [newPay, setNewPay] = useState({ 
     amount: '', 
@@ -110,12 +113,31 @@ export default function StudentDetailsPage() {
 
   const handleUpdateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!student) return;
     setSubmitting(true);
     try {
+      const formData = new FormData();
+      formData.append('name', student.name);
+      formData.append('firstName', student.firstName);
+      formData.append('contact', student.contact);
+      formData.append('promotion', student.promotion);
+      
+      // If we have a new file, append it
+      if (identityFile) {
+        formData.append('identity', identityFile);
+      } else {
+        // If no new file, we don't append identity, so backend keeps the old one.
+        // Unless we want to support deleting it? For now assume keep old.
+        // But if we want to confirm the existing image is kept, we do nothing.
+        // If we want to send the existing URL... backend handles file or null.
+        if (student.identity) {
+             formData.append('identity', student.identity);
+        }
+      }
+
       const res = await fetch(`/api/student/${studentId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(student),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -352,16 +374,30 @@ export default function StudentDetailsPage() {
       {/* Header with statistics */}
       <div className="flex justify-between items-start mb-6">
         <div>
-          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-            {student.name} {student.firstName}
-          </h1>
-          <div className="flex items-center mt-2 space-x-4">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(student.status)}`}>
-              {getStatusText(student.status)}
-            </span>
-            <span className="text-gray-600 dark:text-gray-400">
-              ID: {student.studentId}
-            </span>
+          <div className="flex items-center space-x-4">
+             {student.identity && (
+                 <img 
+                   src={student.identity} 
+                   alt="Identity"
+                   className="h-24 w-24 rounded-full object-cover border-4 border-white dark:border-gray-700 shadow-md"
+                 />
+             )}
+             <div>
+                <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
+                  {student.name} {student.firstName}
+                </h1>
+                <div className="flex items-center mt-2 space-x-4">
+                  <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(student.status)}`}>
+                    {getStatusText(student.status)}
+                  </span>
+                  <span className="text-gray-600 dark:text-gray-400">
+                    ID: {student.studentId}
+                  </span>
+                  <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Promo: {student.promotion}
+                  </span>
+                </div>
+             </div>
           </div>
         </div>
         <button
@@ -430,15 +466,43 @@ export default function StudentDetailsPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Identity (ID)</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Promotion</label>
               <input
                 type="text"
-                name="identity"
-                value={student.identity}
-                onChange={(e) => setStudent({ ...student, identity: e.target.value })}
+                name="promotion"
+                value={student.promotion}
+                onChange={(e) => setStudent({ ...student, promotion: e.target.value })}
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white p-2"
                 disabled={!isEditMode || submitting}
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Identity (Image)</label>
+              <div className="space-y-2">
+                 {isEditMode ? (
+                    <input
+                      type="file"
+                      name="identity"
+                      accept="image/*"
+                      onChange={(e) => {
+                         if (e.target.files && e.target.files[0]) {
+                            setIdentityFile(e.target.files[0]);
+                         }
+                      }}
+                      className="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-blue-50 file:text-blue-700
+                        hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-200"
+                      disabled={submitting}
+                    />
+                 ) : (
+                    <div className="p-2 border border-gray-200 dark:border-gray-700 rounded-md bg-gray-50 dark:bg-gray-700">
+                       {student.identity ? 'Image uploaded' : 'No image'}
+                    </div>
+                 )}
+              </div>
             </div>
           </div>
           {isEditMode && (

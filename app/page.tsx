@@ -1,3 +1,4 @@
+import { Link } from "lucide-react";
 import Image from "next/image";
 
 export default function Home() {
@@ -32,9 +33,12 @@ export default function Home() {
             target="_blank"
             rel="noopener noreferrer"
           >
+            <button>
+              <Link href="/dashboard" />
+            </button>
             <Image
               className="dark:invert"
-              src="/vercel.svg"
+              src="/dashboard"
               alt="Vercel logomark"
               width={20}
               height={20}

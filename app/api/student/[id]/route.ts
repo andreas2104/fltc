@@ -68,9 +68,24 @@ export async function PUT(
       return NextResponse.json({ error: 'Invalid ID format' }, { status: 400 });
     }
 
-    const { name, firstName, contact, identity } = await request.json();
-    if (!name || !firstName || !contact || !identity) {
+    const formData = await request.formData();
+    const name = formData.get("name") as string;
+    const firstName = formData.get("firstName") as string;
+    const contact = formData.get("contact") as string;
+    const promotionEntry = formData.get("promotion");
+    const promotion = promotionEntry ? promotionEntry.toString() : undefined;
+    const imageFile = formData.get("identity") as File | null;
+
+    if (!name || !firstName || !contact) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    let identityPath: string | undefined = undefined;
+    
+    // Handle image upload if present
+    if (imageFile && imageFile.size > 0) {
+       const { saveFile } = await import("@/lib/file-upload");
+       identityPath = await saveFile(imageFile);
     }
 
     const updatedStudent = await prisma.student.update({
@@ -79,7 +94,8 @@ export async function PUT(
         name,
         firstName,
         contact,
-        identity,
+        ...(promotion && { promotion }),
+        ...(identityPath !== undefined && { identity: identityPath }), // Only update if new image
       },
       include: {
         fees: {
@@ -102,7 +118,7 @@ export async function PUT(
         return NextResponse.json({ error: 'Student not found' }, { status: 404 });
       }
       if (error.code === 'P2002') {
-        return NextResponse.json({ error: 'Contact or identity already exists' }, { status: 409 });
+        return NextResponse.json({ error: 'Contact already exists' }, { status: 409 });
       }
     }
     console.error('Error updating student:', error);

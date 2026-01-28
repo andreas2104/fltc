@@ -41,7 +41,8 @@ model Student {
   name           String
   firstName      String
   contact        String     @unique
-  identity       String       @unique 
+  identity       String?
+  promotion      String       @default("Unknown") 
   status         StudentStatus @default(PENDING)  
   createdAt      DateTime      @default(now())
   fees           Fees[]

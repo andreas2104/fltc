@@ -11,6 +11,7 @@ type Student = {
   firstName: string;
   contact: string;
   identity: string;
+  promotion: string;
   status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
   fees: any[];
   pay: any[];
@@ -31,11 +32,19 @@ export default function StudentsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [newStudent, setNewStudent] = useState({
+  const [editingIdentityFile, setEditingIdentityFile] = useState<File | null>(null);
+  const [newStudent, setNewStudent] = useState<{
+    name: string;
+    firstName: string;
+    contact: string;
+    promotion: string;
+    identity: File | null;
+  }>({
     name: '',
     firstName: '',
     contact: '',
-    identity: '',
+    promotion: '',
+    identity: null,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -72,8 +81,12 @@ export default function StudentsPage() {
   }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewStudent(prev => ({ ...prev, [name]: value }));
+    const { name, value, files } = e.target;
+    if (name === 'identity' && files && files[0]) {
+      setNewStudent(prev => ({ ...prev, identity: files[0] }));
+    } else {
+      setNewStudent(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -88,10 +101,18 @@ export default function StudentsPage() {
     setSubmitting(true);
     
     try {
+      const formData = new FormData();
+      formData.append('name', newStudent.name);
+      formData.append('firstName', newStudent.firstName);
+      formData.append('contact', newStudent.contact);
+      formData.append('promotion', newStudent.promotion);
+      if (newStudent.identity) {
+        formData.append('identity', newStudent.identity);
+      }
+
       const res = await fetch('/api/student', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newStudent),
+        body: formData,
       });
       
       const data = await res.json();
@@ -102,7 +123,7 @@ export default function StudentsPage() {
       
       await fetchData();
       setIsModalOpen(false);
-      setNewStudent({ name: '', firstName: '', contact: '', identity: '' });
+      setNewStudent({ name: '', firstName: '', contact: '', promotion: '', identity: null });
       addNotification('success', 'Student added successfully!');
     } catch (err) {
       addNotification('error', err instanceof Error ? err.message : 'An error occurred');
@@ -118,15 +139,44 @@ export default function StudentsPage() {
     setSubmitting(true);
     
     try {
+      const formData = new FormData();
+      formData.append('name', editingStudent.name);
+      formData.append('firstName', editingStudent.firstName);
+      formData.append('contact', editingStudent.contact);
+      formData.append('promotion', editingStudent.promotion);
+      // For edit, we need to handle new file upload differently or reuse same state structure.
+      // But here editingStudent is type Student (from API), which has identity as string (url).
+      // We need a separate state or modify editingStudent type locally or handle file input separately.
+      // Simplest: Add a separate file state for edit or extend editingStudent partially.
+      // Let's use a ref or separate state for the edit file, or just read from the input directly using a ref? 
+      // Better: Add a state `editingIdentityFile` and use it.
+      
+      if (editingIdentityFile) {
+        formData.append('identity', editingIdentityFile);
+      } else {
+        // If keeping existing, we might send the string or nothing. 
+        // Backend logic: if identity is file, save it. If not present, keep old.
+        // So we append nothing for identity if we don't want to change it.
+        // But if we want to explicitly keep it, we do nothing.
+        // If we want to support unsetting it (making it null), we need logic for that.
+        // User request: optional image.
+        // I will implement: If new file selected, send it. Else send nothing (keeps old).
+        if (editingStudent.identity) {
+             formData.append('identity', editingStudent.identity); // Sending string might be treated as file? No.
+             // Actually backend expects file in 'identity' field. If it's string (url), backend might get a string.
+             // My backend code checks: `const imageFile = formData.get("identity") as File | null;`
+             // If I send a string, `imageFile` will be the string (if cast to any) or `File` check fails.
+             // `formData.get` returns `FormDataEntryValue` which is `File | string`.
+             // In backend: `if (imageFile && imageFile.size > 0)` 
+             // String doesn't have `.size`.
+             // So I should NOT send the string URL back as 'identity'.
+             // I should simply NOT append 'identity' if I'm not changing it.
+        }
+      }
+
       const res = await fetch(`/api/student/${editingStudent.studentId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: editingStudent.name,
-          firstName: editingStudent.firstName,
-          contact: editingStudent.contact,
-          identity: editingStudent.identity,
-        }),
+        body: formData,
       });
       
       const data = await res.json();
@@ -320,6 +370,9 @@ export default function StudentsPage() {
                 Identity
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
+                Promotion
+              </th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
                 Status
               </th>
               <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
@@ -344,7 +397,18 @@ export default function StudentsPage() {
                   {student.contact}
                 </td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                  {student.identity}
+                  {student.identity ? (
+                    <img 
+                      src={student.identity} 
+                      alt="Identity" 
+                      className="h-10 w-10 rounded-full object-cover border border-gray-200"
+                    />
+                  ) : (
+                    <span className="text-gray-400 italic">No Image</span>
+                  )}
+                </td>
+                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
+                  {student.promotion}
                 </td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
                   <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(student.status)}`}>
@@ -443,16 +507,33 @@ export default function StudentsPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Identity</label>
+                <label className="block text-sm font-medium mb-2">Promotion</label>
                 <input
                   type="text"
-                  name="identity"
-                  value={newStudent.identity}
+                  name="promotion"
+                  value={newStudent.promotion}
                   onChange={handleInputChange}
                   required
                   disabled={submitting}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Identity number"
+                  placeholder="Ex: 2024"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Identity</label>
+                <input
+                  type="file"
+                  name="identity"
+                  accept="image/*"
+                  onChange={handleInputChange}
+                  disabled={submitting}
+                  className="mt-1 block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-md file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-200"
                 />
               </div>
                     
@@ -537,17 +618,41 @@ export default function StudentsPage() {
               </div>
               
               <div>
-                <label className="block text-sm font-medium mb-2">Identity</label>
+                <label className="block text-sm font-medium mb-2">Promotion</label>
                 <input
                   type="text"
-                  name="identity"
-                  value={editingStudent.identity}
+                  name="promotion"
+                  value={editingStudent.promotion}
                   onChange={handleEditInputChange}
                   required
                   disabled={submitting}
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Identity number"
+                  placeholder="Ex: 2024"
                 />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-2">Identity</label>
+                <input
+                  type="file"
+                  name="identity"
+                  accept="image/*"
+                  onChange={(e) => {
+                     if (e.target.files && e.target.files[0]) {
+                        setEditingIdentityFile(e.target.files[0]);
+                     }
+                  }}
+                  disabled={submitting}
+                  className="mt-1 block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-md file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-200"
+                />
+                {editingStudent.identity && !editingIdentityFile && (
+                   <p className="mt-2 text-sm text-gray-500">Current: {editingStudent.identity}</p>
+                )}
               </div>
                     
               <div className="flex justify-end space-x-3 pt-4">
