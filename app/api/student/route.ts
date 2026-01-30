@@ -6,17 +6,57 @@ import path from "path";
 const prisma = new PrismaClient();
 
 // get all students
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    const students = await prisma.student.findMany({
-      include: {
-        promotion: true,
-        payments: true,
-      },
-      orderBy: { createdAt: 'desc' }
-    });
+    const { searchParams } = new URL(request.url);
+    const page = Number(searchParams.get("page")) || 1;
+    const limit = Number(searchParams.get("limit")) || 20;
+    const search = searchParams.get("search") || "";
+    const promotionId = searchParams.get("promotionId");
 
-    return NextResponse.json(students, { status: 200 });
+    const skip = (page - 1) * limit;
+
+    const whereClause: Prisma.StudentWhereInput = {
+      AND: [
+        promotionId ? { promotionId: Number(promotionId) } : {},
+        search ? {
+          OR: [
+            { name: { contains: search } }, // SQLite is case-insensitive for contains usually, or use mode: 'insensitive' if postgres/mysql
+            { firstName: { contains: search } }
+          ]
+        } : {}
+      ]
+    };
+
+    const [students, total, completed, pending, overdue] = await Promise.all([
+      prisma.student.findMany({
+        where: whereClause,
+        include: {
+          promotion: true,
+          payments: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.student.count({ where: whereClause }),
+      prisma.student.count({ where: { ...whereClause, status: "COMPLETED" } }),
+      prisma.student.count({ where: { ...whereClause, status: "PENDING" } }),
+      prisma.student.count({ where: { ...whereClause, status: "OVERDUE" } }),
+    ]);
+
+    return NextResponse.json({
+      data: students,
+      meta: {
+        total,
+        completed,
+        pending,
+        overdue,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      }
+    }, { status: 200 });
   } catch (error) {
     console.error("Error fetching students:", error);
     return NextResponse.json({ error: "Server Error" }, { status: 500 });
@@ -88,4 +128,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Server Error" }, { status: 500 });
   }
 }
-

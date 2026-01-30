@@ -52,6 +52,10 @@ export default function StudentsPage() {
   const [newStudentImage, setNewStudentImage] = useState<File | null>(null);
   const [editStudentImage, setEditStudentImage] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [totalPages, setTotalPages] = useState(1);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [limit] = useState(20);
+  const [filterPromotionId, setFilterPromotionId] = useState('');
 
   const router = useRouter();
 
@@ -66,8 +70,15 @@ export default function StudentsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
+      const queryParams = new URLSearchParams({
+        page: currentPage.toString(),
+        limit: limit.toString(),
+        search: searchQuery || '',
+        promotionId: filterPromotionId || ''
+      });
+
       const [studentsRes, promoRes] = await Promise.all([
-        fetch('/api/student'),
+        fetch(`/api/student?${queryParams}`),
         fetch('/api/promotions')
       ]);
 
@@ -78,7 +89,14 @@ export default function StudentsPage() {
       const studentsData = await studentsRes.json();
       const promoData = await promoRes.json();
       
-      setStudents(studentsData);
+      setStudents(studentsData.data);
+      setTotalPages(studentsData.meta.totalPages);
+      setStats({
+          total: studentsData.meta.total,
+          completed: studentsData.meta.completed,
+          pending: studentsData.meta.pending,
+          overdue: studentsData.meta.overdue
+      });
       setPromotions(promoData);
     } catch (err) {
       addNotification('error', err instanceof Error ? err.message : 'An error occurred');
@@ -89,7 +107,7 @@ export default function StudentsPage() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [currentPage, searchQuery, filterPromotionId]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -206,6 +224,13 @@ export default function StudentsPage() {
     router.push(`/students/${studentId}`);
   };
 
+  const [stats, setStats] = useState({
+    total: 0,
+    completed: 0,
+    pending: 0,
+    overdue: 0
+  });
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'COMPLETED':
@@ -220,25 +245,9 @@ export default function StudentsPage() {
   };
 
   // --- Filtre et Statistiques ---
-  const filteredStudents = useMemo(() => {
-    if (!searchQuery) return students;
-    const query = searchQuery.toLowerCase().trim();
-    return students.filter(student =>
-      student.name.toLowerCase().includes(query) ||
-      (student.firstName && student.firstName.toLowerCase().includes(query)) ||
-      (student.promotion && student.promotion.name.toLowerCase().includes(query))
-    );
-  }, [students, searchQuery]);
+  // Client-side filter replaced by Server-side search/filter
   
-  const getStudentStats = () => {
-    const total = students.length;
-    const completed = students.filter(s => s.status === 'COMPLETED').length;
-    const overdue = students.filter(s => s.status === 'OVERDUE').length;
-    const pending = students.filter(s => s.status === 'PENDING').length;
-    return { total, completed, overdue, pending };
-  };
-
-  const stats = getStudentStats();
+  const filteredStudents = students; // Pass through directly as filtering is done on server
 
   if (loading) {
     return (
@@ -310,6 +319,23 @@ export default function StudentsPage() {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex justify-end space-x-4">
+        <select 
+          value={filterPromotionId} 
+          onChange={(e) => {
+             setFilterPromotionId(e.target.value);
+             setCurrentPage(1); // Reset to first page on filter change
+          }} 
+          className="p-2 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-300"
+        >
+          <option value="">All Promotions</option>
+          {promotions.map(p => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
+      </div>
+
       {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md flex-1 min-h-0 overflow-y-auto">
         <table className="min-w-full leading-normal">
@@ -349,6 +375,25 @@ export default function StudentsPage() {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex justify-between items-center px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow">
+          <button 
+             onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+             disabled={currentPage === 1}
+             className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
+          >
+             Previous
+          </button>
+          <span>Page {currentPage} of {totalPages}</span>
+          <button 
+             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+             disabled={currentPage === totalPages}
+             className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
+          >
+             Next
+          </button>
       </div>
 
       {/* Add Modal */}

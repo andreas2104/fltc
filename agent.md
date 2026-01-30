@@ -41,3 +41,9 @@ When modifying `prisma/schema.prisma`:
 - Use TypeScript for all new code.
 - Prefer functional components.
 - Use `lucide-react` for icons.
+
+now on the student page create a fonction while on click to the student we can see the student details and payments with identity and contact information
+
+now add a fonction to delete and update promotions like student 
+now add a fonction delete and update also on payements and  keeps list and total students only on payementes remove total paiemet from payements page only research date or student name or promotion name to find student with payments and add next page while list atempt 20 student keep payements can show on the page
+now add a fonction to delete and update payments and keep list and total students only on payementes remove total paiemet from payements page only research date or student name or promotion name to find student with payments and add next page while list atempt 20 student keep payements can show on the page

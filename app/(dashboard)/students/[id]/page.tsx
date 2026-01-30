@@ -19,6 +19,8 @@ type Student = {
   id: number;
   name: string;
   firstName: string | null;
+  phone: string | null;
+  image: string | null;
   promotion: Promotion;
   promotionId: number;
   status: string;
@@ -40,6 +42,7 @@ export default function StudentDetailsPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [newImage, setNewImage] = useState<File | null>(null);
   
   const [newPayment, setNewPayment] = useState({
     amount: '',
@@ -80,7 +83,12 @@ export default function StudentDetailsPage() {
       const formData = new FormData();
       formData.append('name', student.name);
       formData.append('firstName', student.firstName || '');
+      formData.append('phone', student.phone || '');
       formData.append('promotionId', String(student.promotionId));
+      
+      if (newImage) {
+        formData.append('image', newImage);
+      }
 
       const res = await fetch(`/api/student/${student.id}`, {
         method: 'PUT',
@@ -150,18 +158,28 @@ export default function StudentDetailsPage() {
       {/* Header */}
       <div className="flex justify-between items-start">
          <div className="flex items-center space-x-4">
-            <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold">
-              {student.name.charAt(0)}{student.firstName ? student.firstName.charAt(0) : ''}
+            <div className="h-24 w-24 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 flex items-center justify-center text-white text-3xl font-bold overflow-hidden shadow-lg border-4 border-white">
+              {student.image ? (
+                <img src={student.image} alt={student.name} className="h-full w-full object-cover" />
+              ) : (
+                <span>{student.name.charAt(0)}{student.firstName ? student.firstName.charAt(0) : ''}</span>
+              )}
             </div>
             
             <div>
-               <h1 className="text-4xl font-bold">{student.name} {student.firstName || ''}</h1>
-               <div className="flex items-center mt-2 space-x-4">
+               <h1 className="text-4xl font-bold text-gray-900 dark:text-white">{student.name} {student.firstName || ''}</h1>
+               <div className="flex flex-wrap items-center mt-3 gap-3">
                   <span className={`px-3 py-1 rounded-full text-sm font-medium ${student.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
                     {student.status}
                   </span>
-                  <span className="text-gray-500">ID: {student.id}</span>
-                  <span className="px-3 py-1 bg-gray-100 rounded-full text-sm">Promo: {student.promotion.name}</span>
+                  <span className="text-gray-500 dark:text-gray-400">ID: {student.id}</span>
+                  <span className="px-3 py-1 bg-gray-100 dark:bg-gray-700 rounded-full text-sm">Promo: {student.promotion.name}</span>
+                  {student.phone && (
+                    <span className="flex items-center text-gray-600 dark:text-gray-300">
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>
+                      {student.phone}
+                    </span>
+                  )}
                </div>
             </div>
          </div>
@@ -200,8 +218,24 @@ export default function StudentDetailsPage() {
             </div>
             <div>
                <label className="block text-sm font-medium mb-1">Promotion</label>
-               <div className="p-2 bg-gray-50 border rounded">{student.promotion.name} ({student.promotion.totalFee.toLocaleString()} Ar)</div>
+               <div className="p-2 bg-gray-50 border rounded text-gray-700">{student.promotion.name} ({student.promotion.totalFee.toLocaleString()} Ar)</div>
             </div>
+            <div>
+               <label className="block text-sm font-medium mb-1">Phone</label>
+               <input type="text" value={student.phone || ''} onChange={e => setStudent({...student, phone: e.target.value})} disabled={!isEditMode} placeholder="+261..." className="w-full p-2 border rounded" />
+            </div>
+            {isEditMode && (
+              <div className="col-span-1 md:col-span-2">
+                 <label className="block text-sm font-medium mb-1">Profile Image</label>
+                 <input 
+                    type="file" 
+                    accept="image/*" 
+                    onChange={(e) => setNewImage(e.target.files?.[0] || null)} 
+                    className="w-full p-2 border rounded text-sm"
+                 />
+                 <p className="text-xs text-gray-500 mt-1">Leave empty to keep current image</p>
+              </div>
+            )}
             
             {isEditMode && (
                <div className="col-span-2 flex justify-end">

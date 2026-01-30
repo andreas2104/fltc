@@ -19,6 +19,8 @@ export default function PromotionsPage() {
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingPromo, setEditingPromo] = useState<Promotion | null>(null);
   
   const [newPromotion, setNewPromotion] = useState({
     name: '',
@@ -61,7 +63,67 @@ export default function PromotionsPage() {
   // --- Handlers ---
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setNewPromotion(prev => ({ ...prev, [name]: value }));
+    if (editingPromo) {
+        setEditingPromo(prev => prev ? { ...prev, [name]: name === 'totalFee' ? Number(value) : value } : null);
+    } else {
+        setNewPromotion(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleEditPromotion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingPromo) return;
+    setSubmitting(true);
+    
+    try {
+      const res = await fetch(`/api/promotions/${editingPromo.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editingPromo.name,
+          totalFee: Number(editingPromo.totalFee),
+        }),
+      });
+      
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error updating promotion.');
+      
+      await fetchPromotions();
+      setIsModalOpen(false);
+      setEditingPromo(null);
+      setIsEditMode(false);
+      addNotification('success', 'Promotion updated successfully!');
+    } catch (err) {
+      addNotification('error', err instanceof Error ? err.message : 'An error occurred');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeletePromotion = async (id: number) => {
+    if (!confirm('Are you sure you want to delete this promotion?')) return;
+    try {
+      const res = await fetch(`/api/promotions/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Error deleting promotion.');
+      
+      await fetchPromotions();
+      addNotification('success', 'Promotion deleted successfully');
+    } catch (err) {
+      addNotification('error', err instanceof Error ? err.message : 'Error deleting promotion');
+    }
+  };
+
+  const openEditModal = (promo: Promotion) => {
+    setEditingPromo(promo);
+    setIsEditMode(true);
+    setIsModalOpen(true);
+  };
+
+  const openAddModal = () => {
+     setEditingPromo(null);
+     setIsEditMode(false);
+     setIsModalOpen(true);
   };
 
   const handleAddPromotion = async (e: React.FormEvent) => {
@@ -136,12 +198,17 @@ export default function PromotionsPage() {
 
       {/* Header */}
       <div className="flex justify-between items-center">
-        <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
-          Promotions Management
-        </h1>
+        <div>
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
+            Promotions Management
+          </h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">
+             Total Promotions: <span className="font-semibold text-purple-600 dark:text-purple-400">{promotions.length}</span>
+          </p>
+        </div>
         <button
-          onClick={() => setIsModalOpen(true)}
-          className="px-6 py-3 bg-purple-600 text-white rounded-xl shadow-md hover:bg-purple-700 transition-colors"
+          onClick={openAddModal}
+          className="px-6 py-3 bg-blue-600 text-white rounded-xl shadow-md hover:bg-blue-700 transition-colors"
           disabled={submitting}
         >
           {submitting ? 'Adding...' : 'Add Promotion'}
@@ -150,31 +217,39 @@ export default function PromotionsPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-purple-500">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-purple-500">
           <div className="text-2xl font-bold text-purple-600">{promotions.length}</div>
           <div className="text-gray-600 dark:text-gray-400 text-sm">Total Promotions</div>
         </div>
-      </div>
-
-      {/* Table */}
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md flex-1 min-h-0 overflow-y-auto w-full">
-        <table className="min-w-full leading-normal">
+        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-blue-500">
+          <div className="text-2xl font-bold text-blue-600">
+            {promotions.reduce((acc, curr) => acc + curr.totalFee, 0).toLocaleString()} Ar
+          </div>
+          <div className="text-gray-600 dark:text-gray-400 text-sm">Total Fee Volume</div>
+        </div>
+      </div>      {/* Table */}
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md flex-1 min-h-0 overflow-hidden flex flex-col w-full">
+        <div className="overflow-y-auto flex-1">
+         <table className="min-w-full leading-normal table-fixed">
           <thead>
             <tr className="bg-gray-200 dark:bg-gray-700 sticky top-0 z-10">
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">ID</th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">Name</th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">Total Fee</th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider w-1/3">Name</th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider w-1/3">Total Fee</th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider w-1/3">Actions</th>
             </tr>
           </thead>
           <tbody>
             {promotions.map((promo) => (
               <tr key={promo.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">{promo.id}</td>
-                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium">{promo.name}</td>
+                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium break-words">{promo.name}</td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
                   <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100">
                     {promo.totalFee.toLocaleString()} Ar
                   </span>
+                </td>
+                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
+                   <button onClick={() => openEditModal(promo)} className="px-3 py-1 bg-green-600 text-white rounded mr-2 hover:bg-green-700">Edit</button>
+                   <button onClick={() => handleDeletePromotion(promo.id)} className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700">Delete</button>
                 </td>
               </tr>
             ))}
@@ -187,20 +262,21 @@ export default function PromotionsPage() {
             )}
           </tbody>
         </table>
+        </div>
       </div>
 
       {/* Create Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
-            <h2 className="text-2xl font-bold mb-6">Add New Promotion</h2>
-            <form onSubmit={handleAddPromotion} className="space-y-4">
+            <h2 className="text-2xl font-bold mb-6">{isEditMode ? 'Edit Promotion' : 'Add New Promotion'}</h2>
+            <form onSubmit={isEditMode ? handleEditPromotion : handleAddPromotion} className="space-y-4">
               <div className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Name</label>
                 <input 
                   type="text" 
                   name="name" 
-                  value={newPromotion.name} 
+                  value={isEditMode && editingPromo ? editingPromo.name : newPromotion.name} 
                   onChange={handleInputChange} 
                   required 
                   placeholder="e.g. Batch 2024" 
@@ -213,7 +289,7 @@ export default function PromotionsPage() {
                 <input 
                   type="number" 
                   name="totalFee" 
-                  value={newPromotion.totalFee} 
+                  value={isEditMode && editingPromo ? editingPromo.totalFee : newPromotion.totalFee} 
                   onChange={handleInputChange} 
                   required 
                   placeholder="e.g. 500000" 
@@ -223,7 +299,7 @@ export default function PromotionsPage() {
               
               <div className="flex justify-end space-x-3 pt-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-                <button type="submit" disabled={submitting} className="px-4 py-2 bg-purple-600 text-white rounded">{submitting ? 'Adding...' : 'Add Promotion'}</button>
+                <button type="submit" disabled={submitting} className="px-4 py-2 bg-purple-600 text-white rounded">{submitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Add Promotion')}</button>
               </div>
             </form>
           </div>
