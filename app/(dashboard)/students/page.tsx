@@ -1,20 +1,24 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-// Importer useSearch depuis le contexte
 import { useSearch } from '../../context/searchContext'; 
 
 // --- Types ---
-type Student = {
-  studentId: number;
+type Promotion = {
+  id: number;
   name: string;
-  firstName: string;
-  contact: string;
-  identity: string;
-  promotion: string;
-  status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
-  fees: any[];
-  pay: any[];
+  totalFee: number;
+};
+
+type Student = {
+  id: number;
+  name: string;
+  firstName: string | null;
+  phone: string | null;
+  image: string | null;
+  promotionId: number;
+  promotion: Promotion;
+  status: string; // 'PENDING' | 'COMPLETED'
 };
 
 type Notification = {
@@ -25,27 +29,28 @@ type Notification = {
 
 // --- Composant Principal ---
 export default function StudentsPage() {
-  const { searchQuery } = useSearch(); // Utiliser le contexte de recherche
+  const { searchQuery } = useSearch();
   const [students, setStudents] = useState<Student[]>([]);
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [editingIdentityFile, setEditingIdentityFile] = useState<File | null>(null);
+  
   const [newStudent, setNewStudent] = useState<{
     name: string;
     firstName: string;
-    contact: string;
-    promotion: string;
-    identity: File | null;
+    phone: string;
+    promotionId: string;
   }>({
     name: '',
     firstName: '',
-    contact: '',
-    promotion: '',
-    identity: null,
+    phone: '',
+    promotionId: '',
   });
+  const [newStudentImage, setNewStudentImage] = useState<File | null>(null);
+  const [editStudentImage, setEditStudentImage] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const router = useRouter();
@@ -53,8 +58,6 @@ export default function StudentsPage() {
   const addNotification = (type: 'success' | 'error' | 'info', message: string) => {
     const id = Math.random().toString(36).substr(2, 9);
     setNotifications(prev => [...prev, { id, type, message }]);
-    
-    // Auto remove after 5 seconds
     setTimeout(() => {
       setNotifications(prev => prev.filter(notification => notification.id !== id));
     }, 5000);
@@ -63,12 +66,20 @@ export default function StudentsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const studentsRes = await fetch('/api/student');
-      if (!studentsRes.ok) {
-        throw new Error('Failed to load students.');
+      const [studentsRes, promoRes] = await Promise.all([
+        fetch('/api/student'),
+        fetch('/api/promotions')
+      ]);
+
+      if (!studentsRes.ok || !promoRes.ok) {
+        throw new Error('Failed to load data.');
       }
+      
       const studentsData = await studentsRes.json();
+      const promoData = await promoRes.json();
+      
       setStudents(studentsData);
+      setPromotions(promoData);
     } catch (err) {
       addNotification('error', err instanceof Error ? err.message : 'An error occurred');
     } finally {
@@ -80,16 +91,12 @@ export default function StudentsPage() {
     fetchData();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, files } = e.target;
-    if (name === 'identity' && files && files[0]) {
-      setNewStudent(prev => ({ ...prev, identity: files[0] }));
-    } else {
-      setNewStudent(prev => ({ ...prev, [name]: value }));
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    setNewStudent(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     if (editingStudent) {
       setEditingStudent(prev => prev ? { ...prev, [name]: value } : null);
@@ -104,10 +111,10 @@ export default function StudentsPage() {
       const formData = new FormData();
       formData.append('name', newStudent.name);
       formData.append('firstName', newStudent.firstName);
-      formData.append('contact', newStudent.contact);
-      formData.append('promotion', newStudent.promotion);
-      if (newStudent.identity) {
-        formData.append('identity', newStudent.identity);
+      formData.append('promotionId', newStudent.promotionId);
+      formData.append('phone', newStudent.phone);
+      if (newStudentImage) {
+        formData.append('image', newStudentImage);
       }
 
       const res = await fetch('/api/student', {
@@ -123,7 +130,8 @@ export default function StudentsPage() {
       
       await fetchData();
       setIsModalOpen(false);
-      setNewStudent({ name: '', firstName: '', contact: '', promotion: '', identity: null });
+      setNewStudent({ name: '', firstName: '', phone: '', promotionId: '' });
+      setNewStudentImage(null);
       addNotification('success', 'Student added successfully!');
     } catch (err) {
       addNotification('error', err instanceof Error ? err.message : 'An error occurred');
@@ -135,59 +143,32 @@ export default function StudentsPage() {
   const handleEditStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingStudent) return;
-    
     setSubmitting(true);
     
     try {
       const formData = new FormData();
       formData.append('name', editingStudent.name);
-      formData.append('firstName', editingStudent.firstName);
-      formData.append('contact', editingStudent.contact);
-      formData.append('promotion', editingStudent.promotion);
-      // For edit, we need to handle new file upload differently or reuse same state structure.
-      // But here editingStudent is type Student (from API), which has identity as string (url).
-      // We need a separate state or modify editingStudent type locally or handle file input separately.
-      // Simplest: Add a separate file state for edit or extend editingStudent partially.
-      // Let's use a ref or separate state for the edit file, or just read from the input directly using a ref? 
-      // Better: Add a state `editingIdentityFile` and use it.
-      
-      if (editingIdentityFile) {
-        formData.append('identity', editingIdentityFile);
-      } else {
-        // If keeping existing, we might send the string or nothing. 
-        // Backend logic: if identity is file, save it. If not present, keep old.
-        // So we append nothing for identity if we don't want to change it.
-        // But if we want to explicitly keep it, we do nothing.
-        // If we want to support unsetting it (making it null), we need logic for that.
-        // User request: optional image.
-        // I will implement: If new file selected, send it. Else send nothing (keeps old).
-        if (editingStudent.identity) {
-             formData.append('identity', editingStudent.identity); // Sending string might be treated as file? No.
-             // Actually backend expects file in 'identity' field. If it's string (url), backend might get a string.
-             // My backend code checks: `const imageFile = formData.get("identity") as File | null;`
-             // If I send a string, `imageFile` will be the string (if cast to any) or `File` check fails.
-             // `formData.get` returns `FormDataEntryValue` which is `File | string`.
-             // In backend: `if (imageFile && imageFile.size > 0)` 
-             // String doesn't have `.size`.
-             // So I should NOT send the string URL back as 'identity'.
-             // I should simply NOT append 'identity' if I'm not changing it.
-        }
+      formData.append('firstName', editingStudent.firstName || '');
+      formData.append('promotionId', String(editingStudent.promotionId));
+      formData.append('phone', editingStudent.phone || '');
+      if (editStudentImage) {
+        formData.append('image', editStudentImage);
       }
 
-      const res = await fetch(`/api/student/${editingStudent.studentId}`, {
+      const res = await fetch(`/api/student/${editingStudent.id}`, {
         method: 'PUT',
         body: formData,
       });
       
-      const data = await res.json();
-      
       if (!res.ok) {
+        const data = await res.json();
         throw new Error(data.error || 'Error updating student.');
       }
       
       await fetchData();
       setIsEditModalOpen(false);
       setEditingStudent(null);
+      setEditStudentImage(null);
       addNotification('success', 'Student updated successfully!');
     } catch (err) {
       addNotification('error', err instanceof Error ? err.message : 'An error occurred');
@@ -238,35 +219,17 @@ export default function StudentsPage() {
     }
   };
 
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'Completed';
-      case 'OVERDUE':
-        return 'Overdue';
-      case 'PENDING':
-        return 'Pending';
-      default:
-        return status;
-    }
-  };
-
   // --- Filtre et Statistiques ---
-  
-  // 1. Filtrer les étudiants en utilisant la requête de recherche du contexte
   const filteredStudents = useMemo(() => {
     if (!searchQuery) return students;
-
     const query = searchQuery.toLowerCase().trim();
     return students.filter(student =>
       student.name.toLowerCase().includes(query) ||
-      student.firstName.toLowerCase().includes(query) ||
-      student.contact.toLowerCase().includes(query) ||
-      student.identity.toLowerCase().includes(query)
+      (student.firstName && student.firstName.toLowerCase().includes(query)) ||
+      (student.promotion && student.promotion.name.toLowerCase().includes(query))
     );
   }, [students, searchQuery]);
   
-  // 2. Calculer les statistiques globales (utilisant la liste complète)
   const getStudentStats = () => {
     const total = students.length;
     const completed = students.filter(s => s.status === 'COMPLETED').length;
@@ -276,7 +239,6 @@ export default function StudentsPage() {
   };
 
   const stats = getStudentStats();
-  // -----------------------------
 
   if (loading) {
     return (
@@ -287,7 +249,6 @@ export default function StudentsPage() {
   }
 
   return (
-    // Utilisez `h-full` sur le conteneur principal pour définir une hauteur flexible
     <div className="h-full space-y-8 flex flex-col">
       {/* Notifications */}
       <div className="fixed top-4 right-4 z-50 space-y-2">
@@ -315,7 +276,7 @@ export default function StudentsPage() {
         ))}
       </div>
 
-      {/* Tête de page (Immobile) */}
+      {/* Tête de page */}
       <div className="flex justify-between items-center">
         <h1 className="text-4xl font-bold text-gray-900 dark:text-gray-100">
           Student Management
@@ -329,7 +290,7 @@ export default function StudentsPage() {
         </button>
       </div>
 
-      {/* Statistics Cards (Immobile) */}
+      {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-blue-500">
           <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
@@ -349,330 +310,119 @@ export default function StudentsPage() {
         </div>
       </div>
 
-      {/* Conteneur de tableau avec défilement vertical */}
+      {/* Table */}
       <div className="bg-white dark:bg-gray-800 rounded-xl shadow-md flex-1 min-h-0 overflow-y-auto">
         <table className="min-w-full leading-normal">
           <thead>
             <tr className="bg-gray-200 dark:bg-gray-700 sticky top-0 z-10">
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                ID
-              </th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Name
-              </th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                First Name
-              </th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Contact
-              </th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Identity
-              </th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Promotion
-              </th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">
-                Actions
-              </th>
+              {/* <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">ID</th> */}
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">Name</th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">First Name</th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">Promotion</th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">Phone</th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">Status</th>
+              <th className="px-5 py-3 border-b-2 border-gray-300 dark:border-gray-600 text-left text-xs font-semibold text-gray-600 dark:text-gray-200 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {/* Utiliser filteredStudents pour l'affichage */}
             {filteredStudents.map((student) => (
-              <tr key={student.studentId} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+              <tr key={student.id} className="hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                {/* <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">{student.id}</td> */}
+                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium">{student.name}</td>
+                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">{student.firstName || '-'}</td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                  {student.studentId}
-                </td>
-                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm font-medium">
-                  {student.name}
-                </td>
-                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                  {student.firstName}
+
+                  {student.promotion?.name || 'N/A'}
                 </td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                  {student.contact}
+                  {student.phone || '-'}
                 </td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                  {student.identity ? (
-                    <img 
-                      src={student.identity} 
-                      alt="Identity" 
-                      className="h-10 w-10 rounded-full object-cover border border-gray-200"
-                    />
-                  ) : (
-                    <span className="text-gray-400 italic">No Image</span>
-                  )}
-                </td>
-                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                  {student.promotion}
-                </td>
-                <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(student.status)}`}>
-                    {getStatusText(student.status)}
-                  </span>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(student.status)}`}>{student.status}</span>
                 </td>
                 <td className="px-5 py-5 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-sm text-right space-x-2">
-                  <button
-                    onClick={() => handleViewDetails(student.studentId)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
-                  >
-                    Details
-                  </button>
-                  <button
-                    onClick={() => openEditModal(student)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDeleteStudent(student.studentId)}
-                    className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors"
-                  >
-                    Delete
-                  </button>
+                  <button onClick={() => handleViewDetails(student.id)} className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">Details</button>
+                  <button onClick={() => openEditModal(student)} className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 transition-colors">Edit</button>
+                  <button onClick={() => handleDeleteStudent(student.id)} className="px-4 py-2 text-sm font-medium text-white bg-red-500 rounded-md hover:bg-red-600 transition-colors">Delete</button>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        
-        {filteredStudents.length === 0 && !loading && (
-          <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-            {searchQuery ? `No students found matching "${searchQuery}".` : 'No students found.'}
-          </div>
-        )}
       </div>
 
-      {/* Modals remain here... */}
-      {/* ... Add Student Modal ... */}
+      {/* Add Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Add New Student</h2>
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                disabled={submitting}
-              >
-                ×
-              </button>
-            </div>
-            
+            <h2 className="text-2xl font-bold mb-6">Add New Student</h2>
             <form onSubmit={handleAddStudent} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={newStudent.name}
-                  onChange={handleInputChange}
-                  required
-                  disabled={submitting}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Enter name"
+              <input type="text" name="name" value={newStudent.name} onChange={handleInputChange} required placeholder="Name" className="w-full p-2 border rounded" />
+              <input type="text" name="firstName" value={newStudent.firstName} onChange={handleInputChange} placeholder="First Name (optional)" className="w-full p-2 border rounded" />
+              <input type="text" name="phone" value={newStudent.phone} onChange={handleInputChange} placeholder="Phone Number (optional)" className="w-full p-2 border rounded" />
+              
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Photo (optional)</label>
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => setNewStudentImage(e.target.files?.[0] || null)} 
+                  className="w-full p-2 border rounded text-sm"
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium mb-2">First Name</label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={newStudent.firstName}
-                  onChange={handleInputChange}
-                  required
-                  disabled={submitting}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Enter first name"
-                />
-              </div>
+              <select name="promotionId" value={newStudent.promotionId} onChange={handleInputChange} required className="w-full p-2 border rounded">
+                 <option value="">Select Promotion</option>
+                 {promotions.map(p => (
+                   <option key={p.id} value={p.id}>{p.name} ({p.totalFee.toLocaleString()} Ar)</option>
+                 ))}
+              </select>
               
-              <div>
-                <label className="block text-sm font-medium mb-2">Contact</label>
-                <input
-                  type="text"
-                  name="contact"
-                  value={newStudent.contact}
-                  onChange={handleInputChange}
-                  required
-                  disabled={submitting}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Phone number or email"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Promotion</label>
-                <input
-                  type="text"
-                  name="promotion"
-                  value={newStudent.promotion}
-                  onChange={handleInputChange}
-                  required
-                  disabled={submitting}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Ex: 2024"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Identity</label>
-                <input
-                  type="file"
-                  name="identity"
-                  accept="image/*"
-                  onChange={handleInputChange}
-                  disabled={submitting}
-                  className="mt-1 block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-blue-50 file:text-blue-700
-                    hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-200"
-                />
-              </div>
-                    
               <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  disabled={submitting}
-                  className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 transition-colors"
-                >
-                  {submitting ? 'Adding...' : 'Add Student'}
-                </button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                <button type="submit" disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded">{submitting ? 'Adding...' : 'Add Student'}</button>
               </div>
             </form>
           </div>
         </div>
       )}
 
-      {/* ... Edit Student Modal ... */}
+      {/* Edit Modal */}
       {isEditModalOpen && editingStudent && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold">Edit Student</h2>
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-                disabled={submitting}
-              >
-                ×
-              </button>
-            </div>
-            
-            <form onSubmit={handleEditStudent} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">Name</label>
-                <input
-                  type="text"
-                  name="name"
-                  value={editingStudent.name}
-                  onChange={handleEditInputChange}
-                  required
-                  disabled={submitting}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Enter name"
-                />
-              </div>
+             <h2 className="text-2xl font-bold mb-6">Edit Student</h2>
+             <form onSubmit={handleEditStudent} className="space-y-4">
+              <input type="text" name="name" value={editingStudent.name} onChange={handleEditInputChange} required placeholder="Name" className="w-full p-2 border rounded" />
+              <input type="text" name="firstName" value={editingStudent.firstName || ''} onChange={handleEditInputChange} placeholder="First Name (optional)" className="w-full p-2 border rounded" />
+              <input type="text" name="phone" value={editingStudent.phone || ''} onChange={handleEditInputChange} placeholder="Phone Number (optional)" className="w-full p-2 border rounded" />
               
-              <div>
-                <label className="block text-sm font-medium mb-2">First Name</label>
-                <input
-                  type="text"
-                  name="firstName"
-                  value={editingStudent.firstName}
-                  onChange={handleEditInputChange}
-                  required
-                  disabled={submitting}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Enter first name"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Contact</label>
-                <input
-                  type="text"
-                  name="contact"
-                  value={editingStudent.contact}
-                  onChange={handleEditInputChange}
-                  required
-                  disabled={submitting}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Phone number or email"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Promotion</label>
-                <input
-                  type="text"
-                  name="promotion"
-                  value={editingStudent.promotion}
-                  onChange={handleEditInputChange}
-                  required
-                  disabled={submitting}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 p-2"
-                  placeholder="Ex: 2024"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-2">Identity</label>
-                <input
-                  type="file"
-                  name="identity"
-                  accept="image/*"
-                  onChange={(e) => {
-                     if (e.target.files && e.target.files[0]) {
-                        setEditingIdentityFile(e.target.files[0]);
-                     }
-                  }}
-                  disabled={submitting}
-                  className="mt-1 block w-full text-sm text-gray-500
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded-md file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-blue-50 file:text-blue-700
-                    hover:file:bg-blue-100 dark:file:bg-gray-700 dark:file:text-gray-200"
-                />
-                {editingStudent.identity && !editingIdentityFile && (
-                   <p className="mt-2 text-sm text-gray-500">Current: {editingStudent.identity}</p>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Photo (optional)</label>
+                {editingStudent.image && (
+                  <div className="mb-2">
+                    <img src={editingStudent.image} alt="Current photo" className="w-20 h-20 object-cover rounded" />
+                  </div>
                 )}
+                <input 
+                  type="file" 
+                  accept="image/*" 
+                  onChange={(e) => setEditStudentImage(e.target.files?.[0] || null)} 
+                  className="w-full p-2 border rounded text-sm"
+                />
               </div>
-                    
+              
+              <select name="promotionId" value={editingStudent.promotionId} onChange={handleEditInputChange} required className="w-full p-2 border rounded">
+                 {promotions.map(p => (
+                   <option key={p.id} value={p.id}>{p.name} ({p.totalFee.toLocaleString()} Ar)</option>
+                 ))}
+              </select>
+
               <div className="flex justify-end space-x-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setIsEditModalOpen(false)}
-                  disabled={submitting}
-                  className="px-4 py-2 text-sm font-medium rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 transition-colors"
-                >
-                  {submitting ? 'Updating...' : 'Update Student'}
-                </button>
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                <button type="submit" disabled={submitting} className="px-4 py-2 bg-green-600 text-white rounded">{submitting ? 'Saving...' : 'Save Changes'}</button>
               </div>
-            </form>
+             </form>
           </div>
         </div>
       )}

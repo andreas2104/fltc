@@ -81,8 +81,8 @@ const Sidebar = () => {
           {[
             { href: '/dashboard', label: 'Home' },
             { href: '/students', label: 'Students' },
-            { href: '/fees', label: 'Fees' },
-            { href: '/pay', label: 'Pay' },
+            { href: '/payments', label: 'Payments' },
+            { href: '/promotions', label: 'Promotions' },
           ].map((link) => (
             <li key={link.href}>
               <Link

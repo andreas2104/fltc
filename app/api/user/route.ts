@@ -7,11 +7,7 @@ const prisma = new PrismaClient();
 // Récupère tous les utilisateurs
 export async function GET() {
   try {
-    const users = await prisma.user.findMany({
-      include: {
-        center: true,
-      },
-    });
+    const users = await prisma.user.findMany();
     return NextResponse.json(users, { status: 200 });
   } catch (error) {
     console.error("Error fetching users:", error);
@@ -22,8 +18,8 @@ export async function GET() {
 // Crée un nouvel utilisateur (enregistrement)
 export async function POST(request: Request) {
   try {
-    const { name, firstName, email, contact, password, role, centerId } = await request.json();
-    if (!name || !firstName || !email || !contact || !password || role === undefined || !centerId) {
+    const { name, firstName, email, contact, password, role } = await request.json();
+    if (!name || !firstName || !email || !contact || !password || role === undefined) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
@@ -37,12 +33,6 @@ export async function POST(request: Request) {
         contact,
         password: hashedPassword,
         role,
-        center: {
-          connect: { centerId: centerId }
-        }
-      },
-      include: {
-        center: true,
       },
     });
 
@@ -55,9 +45,6 @@ export async function POST(request: Request) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2002') { // Violation de la contrainte unique
         return NextResponse.json({ error: "A user with this email or contact already exists" }, { status: 409 });
-      }
-      if (error.code === 'P2025') {
-        return NextResponse.json({ error: "Center not found" }, { status: 404 });
       }
     }
     return NextResponse.json({ error: "Server Error" }, { status: 500 });

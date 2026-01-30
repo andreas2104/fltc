@@ -1,5 +1,7 @@
-import { PrismaClient, Prisma, StudentStatus } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+import { writeFile, mkdir } from "fs/promises";
+import path from "path";
 
 const prisma = new PrismaClient();
 
@@ -8,36 +10,13 @@ export async function GET() {
   try {
     const students = await prisma.student.findMany({
       include: {
-        fees: {
-          include: {
-            pay: true,
-          },
-        },
-        pay: true,
+        promotion: true,
+        payments: true,
       },
+      orderBy: { createdAt: 'desc' }
     });
 
-    // Calculer le statut mis à jour pour chaque étudiant
-    const studentsWithUpdatedStatus = await Promise.all(
-      students.map(async (student) => {
-        const updatedStatus = await calculateStudentStatus(student.studentId);
-
-        // Mettre à jour le statut si nécessaire
-        if (updatedStatus !== student.status) {
-          await prisma.student.update({
-            where: { studentId: student.studentId },
-            data: { status: updatedStatus },
-          });
-        }
-
-        return {
-          ...student,
-          status: updatedStatus,
-        };
-      })
-    );
-
-    return NextResponse.json(studentsWithUpdatedStatus, { status: 200 });
+    return NextResponse.json(students, { status: 200 });
   } catch (error) {
     console.error("Error fetching students:", error);
     return NextResponse.json({ error: "Server Error" }, { status: 500 });
@@ -50,41 +29,49 @@ export async function POST(request: Request) {
     const formData = await request.formData();
     const name = formData.get("name") as string;
     const firstName = formData.get("firstName") as string;
-    const contact = formData.get("contact") as string;
-    const promotion = formData.get("promotion") as string;
-    const imageFile = formData.get("identity") as File | null;
+    const promotionId = formData.get("promotionId") as string;
+    const phone = formData.get("phone") as string;
+    const imageFile = formData.get("image") as File | null;
     
     // Validations de base
-    if (!name || !firstName || !contact) {
+    if (!name || !promotionId) {
       return NextResponse.json(
-        { error: "Missing required fields (name, firstName, contact)" },
+        { error: "Missing required fields (name, promotionId)" },
         { status: 400 }
       );
     }
 
-    let identityPath: string | null = null;
+    let imagePath: string | undefined = undefined;
     
-    // Handle image upload if present
+    // Handle image upload
     if (imageFile && imageFile.size > 0) {
-      // Import dynamically to avoid issues if saved in a different order, 
-      // but here we know we have the helper. 
-      // Note: In Next.js App Router, we can import from @/lib/...
-      const { saveFile } = await import("@/lib/file-upload");
-      identityPath = await saveFile(imageFile);
+      const bytes = await imageFile.arrayBuffer();
+      const buffer = Buffer.from(bytes);
+      
+      // Ensure uploads directory exists
+      const uploadsDir = path.join(process.cwd(), "public", "uploads");
+      await mkdir(uploadsDir, { recursive: true });
+      
+      // Generate unique filename
+      const ext = path.extname(imageFile.name);
+      const filename = `student_${Date.now()}${ext}`;
+      const filePath = path.join(uploadsDir, filename);
+      
+      await writeFile(filePath, buffer);
+      imagePath = `/uploads/${filename}`;
     }
 
     const newStudent = await prisma.student.create({
       data: {
         name,
-        firstName,
-        contact,
-        promotion: promotion || "Unknown",
-        identity: identityPath, // Save the path or null
-        status: StudentStatus.PENDING,
+        firstName: firstName || undefined,
+        promotionId: Number(promotionId),
+        phone: phone || undefined,
+        image: imagePath,
+        status: "PENDING",
       },
       include: {
-        fees: true,
-        pay: true,
+        promotion: true,
       },
     });
     return NextResponse.json(newStudent, { status: 201 });
@@ -93,7 +80,7 @@ export async function POST(request: Request) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === "P2002") {
         return NextResponse.json(
-          { error: "A student with this contact already exists" },
+          { error: "A student already exists with these details" },
           { status: 409 }
         );
       }
@@ -102,44 +89,3 @@ export async function POST(request: Request) {
   }
 }
 
-// Fonction pour calculer le statut de l'étudiant
-async function calculateStudentStatus(
-  studentId: number
-): Promise<StudentStatus> {
-  const student = await prisma.student.findUnique({
-    where: { studentId },
-    include: {
-      fees: {
-        include: {
-          pay: true,
-        },
-      },
-    },
-  });
-
-  if (!student) return StudentStatus.PENDING;
-
-  let hasOverdue = false;
-  let allFeesPaid = true;
-
-  for (const fee of student.fees) {
-    const totalPaid = fee.pay.reduce((sum, payment) => sum + payment.amount, 0);
-
-    if (totalPaid < fee.price) {
-      allFeesPaid = false;
-
-      // Vérifier si c'est en retard (logique simplifiée - à adapter)
-      if (fee.feeType === "ECOLAGE_MENSUEL" && fee.month) {
-        const feeMonth = new Date(fee.month);
-        const now = new Date();
-        if (feeMonth < now && totalPaid === 0) {
-          hasOverdue = true;
-        }
-      }
-    }
-  }
-
-  if (allFeesPaid) return StudentStatus.COMPLETED;
-  if (hasOverdue) return StudentStatus.OVERDUE;
-  return StudentStatus.PENDING;
-}

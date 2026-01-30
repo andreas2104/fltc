@@ -10,17 +10,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum StudentStatus {
-  PENDING     // Frais en cours
-  COMPLETED   // Tous les frais payés
-  OVERDUE     // En retard (date limite dépassée)
-}
-
-enum FeeType {
-  DROITS_ANNUELS  // Ex. : 2000 une fois
-  ECOLAGE_MENSUEL // Ex. : 1000 par mois
-}
-
 model User {
   userId        String    @id @default(uuid())
   name          String
@@ -31,45 +20,33 @@ model User {
   role          Boolean   // true = admin
   createdAt     DateTime  @default(now())
   emailVerified DateTime?
-
 }
 
-
+model Promotion {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  totalFee    Int       
+  students    Student[]
+}
 
 model Student {
-  studentId      Int           @id @default(autoincrement())
-  name           String
-  firstName      String
-  contact        String     @unique
-  identity       String?
-  promotion      String       @default("Unknown") 
-  status         StudentStatus @default(PENDING)  
-  createdAt      DateTime      @default(now())
-  fees           Fees[]
-  pay            Pay[]
+  id          Int       @id @default(autoincrement())
+  name        String
+  firstName   String?   // Added to keep consistency with previous model if needed, or can be removed if strictly following user proposal. Keeping for safety as 'name' was split in previous schema.
+  image       String?   // Path to uploaded image
+  phone       String?   // Contact phone number
+  promotionId Int
+  promotion   Promotion @relation(fields: [promotionId], references: [id])
+  status      String    @default("PENDING") // Suggestion: Use Enum if strict strict control is needed, but String is what user asked.
+  payments    Payment[]
+  createdAt   DateTime  @default(now())
 }
 
-model Fees {
-  feesId    Int      @id @default(autoincrement())
-  price     Int    
-  feeType   FeeType @default(DROITS_ANNUELS) 
-  month     String?  
+model Payment {
+  id        Int      @id @default(autoincrement())
+  amount    Int
+  date      DateTime @default(now())
+  month     String
   studentId Int
-  student   Student  @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
-  pay       Pay[]
-
-  @@index([studentId, feeType]) 
-}
-
-model Pay {
-  payId     Int      @id @default(autoincrement())
-  amount    Int      
-  month     String   
-  studentId Int
-  student   Student  @relation(fields: [studentId], references: [studentId], onDelete: Cascade)
-  feesId    Int
-  fees      Fees     @relation(fields: [feesId], references: [feesId], onDelete: Cascade)
-
-  @@index([studentId, month])  
-  @@index([feesId])
+  student   Student  @relation(fields: [studentId], references: [id])
 }
