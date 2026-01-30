@@ -47,3 +47,9 @@ now on the student page create a fonction while on click to the student we can s
 now add a fonction to delete and update promotions like student 
 now add a fonction delete and update also on payements and  keeps list and total students only on payementes remove total paiemet from payements page only research date or student name or promotion name to find student with payments and add next page while list atempt 20 student keep payements can show on the page
 now add a fonction to delete and update payments and keep list and total students only on payementes remove total paiemet from payements page only research date or student name or promotion name to find student with payments and add next page while list atempt 20 student keep payements can show on the page
+
+
+now one student can't do payement more than promotion total fee and update more the payement promotion verify api paiement and payement page add notification you've attempt the amout more than promotion total fee
+
+great now add notification on the user page  transform the error on page add payment notification to a message for theeeeee user so let return on the payment while the user try to add payment more than promotion total fee and add fees rest if the user try to add payment more than promotion total fee and update more the payement promotion verify api paiement and payement page add notification you've attempt the amout more than promotion total fee
+so for the statut does same check cause evene we change the payment  above the status is completed 

@@ -268,11 +268,7 @@ export default function PaymentsPage() {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-green-500">
-          <div className="text-2xl font-bold text-green-600">{totalRevenue.toLocaleString()} Ar</div>
-          <div className="text-gray-600 dark:text-gray-400 text-sm">Total Revenue</div>
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md border-l-4 border-blue-500">
           <div className="text-2xl font-bold text-blue-600">{totalPayments}</div>
           <div className="text-gray-600 dark:text-gray-400 text-sm">Total Transactions</div>
@@ -348,9 +344,32 @@ export default function PaymentsPage() {
           <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
             <h2 className="text-2xl font-bold mb-6">{isEditMode ? 'Edit Payment' : 'Add New Payment'}</h2>
             <form onSubmit={isEditMode ? handleEditPayment : handleAddPayment} className="space-y-4">
+              {isEditMode && editingPayment && (
+                  <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg">
+                      <p className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                          Editing payment for: {editingPayment.student?.name} {editingPayment.student?.firstName || ''}
+                      </p>
+                      {(() => {
+                          const student = students.find(s => s.id === editingPayment.studentId);
+                          if (student) {
+                              const totalPaid = student.payments.reduce((sum, p) => sum + p.amount, 0);
+                              const remaining = student.promotion.totalFee - totalPaid;
+                              return (
+                                  <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">
+                                      <p>Total Fee: {student.promotion.totalFee.toLocaleString()} Ar</p>
+                                      <p>Total Paid: {totalPaid.toLocaleString()} Ar</p>
+                                      <p className="font-bold">Fees Rest: {(remaining + editingPayment.amount).toLocaleString()} Ar (before this edit)</p>
+                                  </div>
+                              );
+                          }
+                          return null;
+                      })()}
+                  </div>
+              )}
+
               {!isEditMode && (
                 <div>
-                   <select name="studentId" value={newPayment.studentId} onChange={handleInputChange} required className="w-full p-2 border rounded">
+                   <select name="studentId" value={newPayment.studentId} onChange={handleInputChange} required className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
                       <option value="">Select Student</option>
                       {students.map(s => (
                         <option key={s.id} value={s.id}>{s.name} {s.firstName || ''}</option>
@@ -362,8 +381,19 @@ export default function PaymentsPage() {
                            const totalPaid = selectedStudent.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0);
                            const remaining = selectedStudent.promotion.totalFee - totalPaid;
                            return (
-                               <div className={`mt-2 text-sm font-medium ${remaining < 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                                   Remaining to pay: {remaining.toLocaleString()} Ar (Total Fee: {selectedStudent.promotion.totalFee.toLocaleString()} Ar)
+                               <div className={`mt-2 p-3 rounded-lg text-sm font-medium ${remaining <= 0 ? 'bg-green-100 text-green-700' : 'bg-red-50 text-red-600'}`}>
+                                   <div className="flex justify-between">
+                                       <span>Total Fee:</span>
+                                       <span>{selectedStudent.promotion.totalFee.toLocaleString()} Ar</span>
+                                   </div>
+                                   <div className="flex justify-between">
+                                       <span>Total Paid:</span>
+                                       <span>{totalPaid.toLocaleString()} Ar</span>
+                                   </div>
+                                   <div className="flex justify-between font-bold border-t border-current mt-1 pt-1">
+                                       <span>Fees Rest:</span>
+                                       <span>{remaining.toLocaleString()} Ar</span>
+                                   </div>
                                </div>
                            )
                        }
@@ -372,22 +402,28 @@ export default function PaymentsPage() {
                 </div>
               )}
 
-              <input 
-                type="number" 
-                name="amount" 
-                value={isEditMode && editingPayment ? editingPayment.amount : newPayment.amount} 
-                onChange={handleInputChange} 
-                required 
-                placeholder="Amount (Ar)" 
-                className="w-full p-2 border rounded" 
-              />
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Amount (Ar)</label>
+                <input 
+                  type="number" 
+                  name="amount" 
+                  value={isEditMode && editingPayment ? editingPayment.amount : newPayment.amount} 
+                  onChange={handleInputChange} 
+                  required 
+                  placeholder="Amount (Ar)" 
+                  className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+                />
+              </div>
 
-              <select name="month" value={isEditMode && editingPayment ? editingPayment.month : newPayment.month} onChange={handleInputChange} required className="w-full p-2 border rounded">
-                 <option value="">Select Month</option>
-                 {monthOptions.map(m => (
-                   <option key={m} value={m}>{m}</option>
-                 ))}
-              </select>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Month</label>
+                <select name="month" value={isEditMode && editingPayment ? editingPayment.month : newPayment.month} onChange={handleInputChange} required className="w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                   <option value="">Select Month</option>
+                   {monthOptions.map(m => (
+                     <option key={m} value={m}>{m}</option>
+                   ))}
+                </select>
+              </div>
               
               <div className="flex justify-end space-x-3 pt-4">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>

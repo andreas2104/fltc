@@ -22,13 +22,40 @@ export async function PUT(
     // Validate if necessary. amount and month should be present.
     // Payment update logic
     
+    // Check for overpayment
+    const existingPayment = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      include: {
+        student: {
+          include: {
+            promotion: true,
+            payments: true,
+          }
+        }
+      }
+    });
+
+    if (!existingPayment) {
+      return NextResponse.json({ error: "Payment not found" }, { status: 404 });
+    }
+
+    const newAmountValue = amount !== undefined ? Number(amount) : existingPayment.amount;
+    const currentTotalPaid = existingPayment.student.payments.reduce((acc, curr) => acc + curr.amount, 0);
+    // Subtract the old amount and add the new one
+    const adjustedTotal = currentTotalPaid - existingPayment.amount + newAmountValue;
+
+    if (adjustedTotal > existingPayment.student.promotion.totalFee) {
+       return NextResponse.json(
+         { error: "you've attempt the amout more than promotion total fee" },
+         { status: 400 }
+       );
+    }
+
     const updatedPayment = await prisma.payment.update({
       where: { id: paymentId },
       data: {
-        amount: amount ? Number(amount) : undefined,
+        amount: amount !== undefined ? Number(amount) : undefined,
         month: month || undefined,
-        // Usually we don't change studentId for a payment, but if needed:
-        // studentId: studentId ? Number(studentId) : undefined 
       },
     });
 

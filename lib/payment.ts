@@ -48,13 +48,19 @@ export async function getStudentBalance(studentId: number) {
 export async function checkAndUpdateStatus(studentId: number) {
   const { totalPaid, totalFee, status } = await getStudentBalance(studentId);
 
+  let newStatus = status;
   if (totalPaid >= totalFee && status !== 'COMPLETED') {
-    await prisma.student.update({
-      where: { id: studentId },
-      data: { status: 'COMPLETED' },
-    });
-    return 'COMPLETED';
+    newStatus = 'COMPLETED';
+  } else if (totalPaid < totalFee && status === 'COMPLETED') {
+    newStatus = 'PENDING';
   }
 
-  return status;
+  if (newStatus !== status) {
+    await prisma.student.update({
+      where: { id: studentId },
+      data: { status: newStatus },
+    });
+  }
+
+  return newStatus;
 }

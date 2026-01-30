@@ -107,7 +107,7 @@ export async function POST(request: Request) {
 
     if (newTotal > studentData.promotion.totalFee) {
         return NextResponse.json(
-            { error: "you've attempt fees total thank you" },
+            { error: "you've attempt the amout more than promotion total fee" },
             { status: 400 }
         );
     }
