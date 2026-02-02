@@ -45,7 +45,7 @@ const Header = () => {
             <div className='relative'>
               <input
                 type='text'
-                placeholder='Rechercher dans toutes les sections...'
+                placeholder='Search across all sections...'
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className='w-full px-4 py-2 pl-10 pr-10 rounded-lg border border-gray-300 dark:border-gray-600 
