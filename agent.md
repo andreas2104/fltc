@@ -53,3 +53,6 @@ now one student can't do payement more than promotion total fee and update more 
 
 great now add notification on the user page  transform the error on page add payment notification to a message for theeeeee user so let return on the payment while the user try to add payment more than promotion total fee and add fees rest if the user try to add payment more than promotion total fee and update more the payement promotion verify api paiement and payement page add notification you've attempt the amout more than promotion total fee
 so for the statut does same check cause evene we change the payment  above the status is completed 
+
+
+for your final step lest build this app to production and deploy it from electron js cause 

@@ -1,6 +1,5 @@
-'use client';
-
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
 interface SearchContextType {
   searchQuery: string;
@@ -13,8 +12,43 @@ interface SearchContextType {
 const SearchContext = createContext<SearchContextType | undefined>(undefined);
 
 export const SearchProvider = ({ children }: { children: ReactNode }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  return (
+    <React.Suspense fallback={null}>
+      <SearchContent>{children}</SearchContent>
+    </React.Suspense>
+  );
+};
+
+const SearchContent = ({ children }: { children: ReactNode }) => {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  
+  const [searchQuery, setSearchQueryState] = useState(searchParams.get('q') || '');
   const [activeFilters, setActiveFilters] = useState<Record<string, any>>({});
+
+  // Sync state with URL when it changes elsewhere
+  useEffect(() => {
+    const q = searchParams.get('q') || '';
+    if (q !== searchQuery) {
+      setSearchQueryState(q);
+    }
+  }, [searchParams]);
+
+  const setSearchQuery = (query: string) => {
+    setSearchQueryState(query);
+    
+    // Update URL
+    const params = new URLSearchParams(searchParams.toString());
+    if (query) {
+      params.set('q', query);
+    } else {
+      params.delete('q');
+    }
+    // Use replace to avoid polluting history on every keystroke if desired, 
+    // but push is standard for search usually.
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  };
 
   const clearSearch = () => {
     setSearchQuery('');

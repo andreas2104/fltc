@@ -1,6 +1,7 @@
 'use client';
-import React, { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useSearch } from '../../context/searchContext';
+import React, { useState, useEffect } from 'react';
 
 // --- Types ---
 type Student = {
@@ -24,7 +25,7 @@ type Payment = {
   student: Student;
 };
 
-type Notification = {
+type AppNotification = {
   id: string;
   type: 'success' | 'error' | 'info';
   message: string;
@@ -37,11 +38,23 @@ const monthOptions = [
 ];
 
 export default function PaymentsPage() {
-  const { searchQuery } = useSearch();
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center text-lg text-gray-600 dark:text-gray-400">Loading payments...</div>}>
+      <PaymentsContent />
+    </React.Suspense>
+  );
+}
+
+function PaymentsContent() {
+  const { searchQuery, setSearchQuery } = useSearch();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [payments, setPayments] = useState<Payment[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
   const [newPayment, setNewPayment] = useState({
@@ -52,12 +65,14 @@ export default function PaymentsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [totalPages, setTotalPages] = useState(1);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(20);
   const [totalRevenue, setTotalRevenue] = useState(0);
   const [totalPayments, setTotalPayments] = useState(0);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editingPayment, setEditingPayment] = useState<Payment | null>(null);
+
+  // URL-synced variables
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const [limit] = useState(20);
 
   const addNotification = (type: 'success' | 'error' | 'info', message: string) => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -65,6 +80,18 @@ export default function PaymentsPage() {
     setTimeout(() => {
       setNotifications(prev => prev.filter(notification => notification.id !== id));
     }, 5000);
+  };
+
+  const updateQueryParams = (newParams: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value === null || value === '') {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const fetchData = async () => {
@@ -322,7 +349,7 @@ export default function PaymentsPage() {
       {/* Pagination */}
       <div className="flex justify-between items-center px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow">
           <button 
-             onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+             onClick={() => updateQueryParams({ page: Math.max(1, currentPage - 1) })} 
              disabled={currentPage === 1}
              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
           >
@@ -330,7 +357,7 @@ export default function PaymentsPage() {
           </button>
           <span>Page {currentPage} of {totalPages}</span>
           <button 
-             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+             onClick={() => updateQueryParams({ page: Math.min(totalPages, currentPage + 1) })} 
              disabled={currentPage === totalPages}
              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
           >
@@ -352,7 +379,7 @@ export default function PaymentsPage() {
                       {(() => {
                           const student = students.find(s => s.id === editingPayment.studentId);
                           if (student) {
-                              const totalPaid = student.payments.reduce((sum, p) => sum + p.amount, 0);
+                              const totalPaid = student.payments.reduce((sum: number, p: { amount: number }) => sum + p.amount, 0);
                               const remaining = student.promotion.totalFee - totalPaid;
                               return (
                                   <div className="mt-1 text-xs text-blue-600 dark:text-blue-400">

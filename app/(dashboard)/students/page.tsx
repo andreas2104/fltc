@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useSearch } from '../../context/searchContext'; 
 
 // --- Types ---
@@ -21,19 +21,30 @@ type Student = {
   status: string; // 'PENDING' | 'COMPLETED'
 };
 
-type Notification = {
+type AppNotification = {
   id: string;
   type: 'success' | 'error' | 'info';
   message: string;
 };
 
-// --- Composant Principal ---
 export default function StudentsPage() {
-  const { searchQuery } = useSearch();
+  return (
+    <React.Suspense fallback={<div className="p-8 text-center text-lg text-gray-600 dark:text-gray-400">Loading students...</div>}>
+      <StudentsContent />
+    </React.Suspense>
+  );
+}
+
+function StudentsContent() {
+  const { searchQuery, setSearchQuery } = useSearch();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [students, setStudents] = useState<Student[]>([]);
   const [promotions, setPromotions] = useState<Promotion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
@@ -53,11 +64,18 @@ export default function StudentsPage() {
   const [editStudentImage, setEditStudentImage] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [totalPages, setTotalPages] = useState(1);
-  const [currentPage, setCurrentPage] = useState(1);
+  
+  // URL-synced variables
+  const currentPage = Number(searchParams.get('page')) || 1;
+  const filterPromotionId = searchParams.get('promotionId') || '';
   const [limit] = useState(20);
-  const [filterPromotionId, setFilterPromotionId] = useState('');
-
-  const router = useRouter();
+  
+  const [stats, setStats] = useState({
+    total: 0,
+    completed: 0,
+    pending: 0,
+    overdue: 0
+  });
 
   const addNotification = (type: 'success' | 'error' | 'info', message: string) => {
     const id = Math.random().toString(36).substr(2, 9);
@@ -65,6 +83,18 @@ export default function StudentsPage() {
     setTimeout(() => {
       setNotifications(prev => prev.filter(notification => notification.id !== id));
     }, 5000);
+  };
+
+  const updateQueryParams = (newParams: Record<string, string | number | null>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value === null || value === '') {
+        params.delete(key);
+      } else {
+        params.set(key, String(value));
+      }
+    });
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const fetchData = async () => {
@@ -104,6 +134,14 @@ export default function StudentsPage() {
       setLoading(false);
     }
   };
+
+  // Sync searchQuery from URL if it exists (e.g. on direct landing)
+  useEffect(() => {
+    const q = searchParams.get('q');
+    if (q !== null && q !== searchQuery) {
+      setSearchQuery(q);
+    }
+  }, [searchParams, setSearchQuery, searchQuery]);
 
   useEffect(() => {
     fetchData();
@@ -224,13 +262,6 @@ export default function StudentsPage() {
     router.push(`/students/${studentId}`);
   };
 
-  const [stats, setStats] = useState({
-    total: 0,
-    completed: 0,
-    pending: 0,
-    overdue: 0
-  });
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'COMPLETED':
@@ -324,8 +355,7 @@ export default function StudentsPage() {
         <select 
           value={filterPromotionId} 
           onChange={(e) => {
-             setFilterPromotionId(e.target.value);
-             setCurrentPage(1); // Reset to first page on filter change
+             updateQueryParams({ promotionId: e.target.value, page: 1 });
           }} 
           className="p-2 border rounded-lg bg-white dark:bg-gray-800 dark:border-gray-700 text-gray-700 dark:text-gray-300"
         >
@@ -380,7 +410,7 @@ export default function StudentsPage() {
       {/* Pagination */}
       <div className="flex justify-between items-center px-4 py-2 bg-white dark:bg-gray-800 rounded-lg shadow">
           <button 
-             onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+             onClick={() => updateQueryParams({ page: Math.max(1, currentPage - 1) })} 
              disabled={currentPage === 1}
              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
           >
@@ -388,7 +418,7 @@ export default function StudentsPage() {
           </button>
           <span>Page {currentPage} of {totalPages}</span>
           <button 
-             onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+             onClick={() => updateQueryParams({ page: Math.min(totalPages, currentPage + 1) })} 
              disabled={currentPage === totalPages}
              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded disabled:opacity-50"
           >

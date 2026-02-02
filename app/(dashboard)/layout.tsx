@@ -103,7 +103,7 @@ const Sidebar = () => {
         {/* /> */}
         <div className='border border-blue-300 shadow rounded-md p-4 max-w-sm w-full mx-auto '>
           <div className='animate-pulse'>
-<Image src={'/logoF.png'}
+         <Image src={'/logoF.png'}
         alt='logo'
         width={200}
         height={100}
