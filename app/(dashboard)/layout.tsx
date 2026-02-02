@@ -118,16 +118,25 @@ const Sidebar = () => {
   );
 };
 
+const Footer = () => {
+  return (
+    <footer className="mt-8 py-4 text-center text-gray-500 dark:text-gray-400 text-sm border-t border-gray-200 dark:border-gray-700">
+      <p>Copyright © 2026 Andréas</p>
+    </footer>
+  );
+};
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <SearchProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
         <Header />
         <Sidebar />
-        <main className="ml-64 mt-16 p-6 min-h-screen">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 min-h-[calc(100vh-8rem)]">
+        <main className="ml-64 mt-16 p-6 min-h-screen flex flex-col">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6 flex-1">
             {children}
           </div>
+          <Footer />
         </main>
       </div>
     </SearchProvider>

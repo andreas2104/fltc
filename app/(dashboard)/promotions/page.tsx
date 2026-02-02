@@ -267,8 +267,8 @@ export default function PromotionsPage() {
 
       {/* Create Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-white/20 w-full max-w-lg">
             <h2 className="text-2xl font-bold mb-6">{isEditMode ? 'Edit Promotion' : 'Add New Promotion'}</h2>
             <form onSubmit={isEditMode ? handleEditPromotion : handleAddPromotion} className="space-y-4">
               <div className="space-y-2">
@@ -298,7 +298,7 @@ export default function PromotionsPage() {
               </div>
               
               <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-500 rounded">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-4 py-2 bg-purple-600 text-white rounded">{submitting ? 'Saving...' : (isEditMode ? 'Save Changes' : 'Add Promotion')}</button>
               </div>
             </form>

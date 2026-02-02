@@ -398,8 +398,8 @@ export default function StudentsPage() {
 
       {/* Add Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-white/20 w-full max-w-lg max-h-[90vh] overflow-y-auto relative">
             <h2 className="text-2xl font-bold mb-6">Add New Student</h2>
             <form onSubmit={handleAddStudent} className="space-y-4">
               <input type="text" name="name" value={newStudent.name} onChange={handleInputChange} required placeholder="Name" className="w-full p-2 border rounded" />
@@ -416,15 +416,15 @@ export default function StudentsPage() {
                 />
               </div>
               
-              <select name="promotionId" value={newStudent.promotionId} onChange={handleInputChange} required className="w-full p-2 border rounded">
-                 <option value="">Select Promotion</option>
+              <select name="promotionId" value={newStudent.promotionId} onChange={handleInputChange} required className="w-full p-2 border rounded text-white bg-gray-800">
+                 <option value="" className="text-black">Select Promotion</option>
                  {promotions.map(p => (
-                   <option key={p.id} value={p.id}>{p.name} ({p.totalFee.toLocaleString()} Ar)</option>
+                   <option key={p.id} value={p.id} className="text-black">{p.name} ({p.totalFee.toLocaleString()} Ar)</option>
                  ))}
               </select>
               
               <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-gray-500 rounded">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-4 py-2 bg-blue-600 text-white rounded">{submitting ? 'Adding...' : 'Add Student'}</button>
               </div>
             </form>
@@ -434,10 +434,23 @@ export default function StudentsPage() {
 
       {/* Edit Modal */}
       {isEditModalOpen && editingStudent && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
-             <h2 className="text-2xl font-bold mb-6">Edit Student</h2>
-             <form onSubmit={handleEditStudent} className="space-y-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div 
+            className="bg-white/90 dark:bg-gray-800/90 backdrop-blur-xl p-8 rounded-2xl shadow-2xl border border-white/20 w-full max-w-lg max-h-[90vh] overflow-y-auto relative"
+            style={{
+              backgroundImage: editingStudent.image ? `url(${editingStudent.image})` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          >
+            {/* Overlay to ensure readability when background image is present */}
+            {editingStudent.image && (
+                <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 z-0"></div>
+            )}
+            
+            <div className="relative z-10">
+              <h2 className="text-2xl font-bold mb-6">Edit Student</h2>
+              <form onSubmit={handleEditStudent} className="space-y-4">
               <input type="text" name="name" value={editingStudent.name} onChange={handleEditInputChange} required placeholder="Name" className="w-full p-2 border rounded" />
               <input type="text" name="firstName" value={editingStudent.firstName || ''} onChange={handleEditInputChange} placeholder="First Name (optional)" className="w-full p-2 border rounded" />
               <input type="text" name="phone" value={editingStudent.phone || ''} onChange={handleEditInputChange} placeholder="Phone Number (optional)" className="w-full p-2 border rounded" />
@@ -457,17 +470,18 @@ export default function StudentsPage() {
                 />
               </div>
               
-              <select name="promotionId" value={editingStudent.promotionId} onChange={handleEditInputChange} required className="w-full p-2 border rounded">
+              <select name="promotionId" value={editingStudent.promotionId} onChange={handleEditInputChange} required className="w-full p-2 border rounded text-white bg-gray-800">
                  {promotions.map(p => (
-                   <option key={p.id} value={p.id}>{p.name} ({p.totalFee.toLocaleString()} Ar)</option>
+                   <option key={p.id} value={p.id} className="text-black">{p.name} ({p.totalFee.toLocaleString()} Ar)</option>
                  ))}
               </select>
 
               <div className="flex justify-end space-x-3 pt-4">
-                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-4 py-2 bg-gray-500 rounded">Cancel</button>
                 <button type="submit" disabled={submitting} className="px-4 py-2 bg-green-600 text-white rounded">{submitting ? 'Saving...' : 'Save Changes'}</button>
               </div>
              </form>
+            </div>
           </div>
         </div>
       )}
